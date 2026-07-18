@@ -86,6 +86,12 @@ jobs:
             python3 -c "import base64, os; s=os.environ['MACOS_CERTIFICATE'].replace('\r', '').replace('\n', '').replace(' ', ''); s += '=' * (-len(s) % 4); open(os.environ['RUNNER_TEMP'] + '/certificate.p12', 'wb').write(base64.b64decode(s))"
             echo "Certificate size: $(wc -c < $RUNNER_TEMP/certificate.p12) bytes"
             file $RUNNER_TEMP/certificate.p12
+            if [ -z "$MACOS_CERTIFICATE_PASSWORD" ]; then
+              echo "WARNING: MACOS_CERTIFICATE_PASSWORD secret is empty!"
+            else
+              echo "Checking certificate structure with OpenSSL..."
+              openssl pkcs12 -info -nodes -passin pass:"$MACOS_CERTIFICATE_PASSWORD" -noout -in $RUNNER_TEMP/certificate.p12 || true
+            fi
             security import $RUNNER_TEMP/certificate.p12 -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           fi
 
@@ -93,6 +99,12 @@ jobs:
             python3 -c "import base64, os; s=os.environ['MACOS_INSTALLER_CERTIFICATE'].replace('\r', '').replace('\n', '').replace(' ', ''); s += '=' * (-len(s) % 4); open(os.environ['RUNNER_TEMP'] + '/installer.p12', 'wb').write(base64.b64decode(s))"
             echo "Installer size: $(wc -c < $RUNNER_TEMP/installer.p12) bytes"
             file $RUNNER_TEMP/installer.p12
+            if [ -z "$MACOS_INSTALLER_CERTIFICATE_PASSWORD" ]; then
+              echo "WARNING: MACOS_INSTALLER_CERTIFICATE_PASSWORD secret is empty!"
+            else
+              echo "Checking installer certificate structure with OpenSSL..."
+              openssl pkcs12 -info -nodes -passin pass:"$MACOS_INSTALLER_CERTIFICATE_PASSWORD" -noout -in $RUNNER_TEMP/installer.p12 || true
+            fi
             security import $RUNNER_TEMP/installer.p12 -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productsign -T /usr/bin/security
           fi
           
