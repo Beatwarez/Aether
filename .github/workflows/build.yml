@@ -1,4 +1,4 @@
-# Trigger rebuild with wrapped secrets
+# Trigger rebuild with final updated secrets
 name: Build & Package Aether Plugin
 
 on:
