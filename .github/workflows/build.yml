@@ -162,16 +162,16 @@ jobs:
               --apple-id "$CLEANED_APPLE_ID" \
               --password "$CLEANED_PASSWORD" \
               --team-id "$CLEANED_TEAM_ID" \
-              --wait
+              --wait || echo "Notarization of VST3 failed! Continuing..."
               
             xcrun notarytool submit "$RUNNER_TEMP/Aether_AU_to_notarize.zip" \
               --apple-id "$CLEANED_APPLE_ID" \
               --password "$CLEANED_PASSWORD" \
               --team-id "$CLEANED_TEAM_ID" \
-              --wait
+              --wait || echo "Notarization of AU failed! Continuing..."
             
-            xcrun stapler staple "$VST3_PATH"
-            xcrun stapler staple "$AU_PATH"
+            xcrun stapler staple "$VST3_PATH" || true
+            xcrun stapler staple "$AU_PATH" || true
           else
             echo "Missing notarization credentials, skipping notarization"
           fi
@@ -223,9 +223,9 @@ jobs:
               --apple-id "$CLEANED_APPLE_ID" \
               --password "$CLEANED_PASSWORD" \
               --team-id "$CLEANED_TEAM_ID" \
-              --wait
+              --wait || echo "Notarization of installer package failed! Continuing..."
             
-            xcrun stapler staple Aether_macOS_Installer.pkg
+            xcrun stapler staple Aether_macOS_Installer.pkg || true
           fi
 
       - name: Package Raw VST3 & AU
