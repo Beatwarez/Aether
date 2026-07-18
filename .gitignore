@@ -1,0 +1,14 @@
+Builds/
+JUCE/
+node_modules/
+aistudio/node_modules/
+react-ui/node_modules/
+Aether_UI_Lab/node_modules/
+.DS_Store
+*.suo
+*.sln
+*.user
+*.ncb
+*.vcproj
+*.vcxproj
+*.filters
