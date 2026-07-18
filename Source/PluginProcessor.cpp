@@ -334,7 +334,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     } else {
       ++it;
     }
-  } }
+  }
 
   // Safely add all newly scheduled events to the main queue
   for (auto &e : additions)
