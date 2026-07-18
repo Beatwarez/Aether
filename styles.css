@@ -1,0 +1,525 @@
+/* AETHER - Pure CSS Aesthetic Design System */
+
+:root {
+    --crt-green: #00ff41;
+    --crt-green-dim: rgba(0, 255, 65, 0.2);
+    --crt-green-hologram: rgba(0, 255, 65, 0.05);
+    --crt-green-active: rgba(0, 255, 65, 0.4);
+    --bg-darkest: #050505;
+    --bg-main: #121212;
+    --border-dim: #333333;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+body {
+    background-color: var(--bg-darkest);
+    color: var(--crt-green);
+    font-family: 'IBM Plex Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* CRT Scanline and Tint Overlay */
+.crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.15) 50%
+      ), linear-gradient(
+        90deg, 
+        rgba(255, 0, 0, 0.03), 
+        rgba(0, 255, 0, 0.01), 
+        rgba(0, 0, 255, 0.03)
+      );
+    background-size: 100% 3px, 3px 100%;
+    pointer-events: none;
+    z-index: 999;
+}
+
+/* Glow effects */
+.crt-glow {
+    text-shadow: 0 0 8px var(--crt-green);
+}
+
+.crt-border {
+    border: 1px solid var(--crt-green);
+    box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.15), 0 0 8px rgba(0, 255, 65, 0.15);
+}
+
+/* Layout container */
+#app-container {
+    width: 1040px;
+    height: 1200px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    background-color: var(--bg-main);
+    border: 1px solid var(--crt-green);
+    box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.1), 0 0 10px rgba(0, 255, 65, 0.15);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: opacity 0.5s ease, filter 0.5s ease;
+}
+
+#app-container.disabled {
+    opacity: 0.4;
+    filter: grayscale(0.5);
+    pointer-events: none;
+}
+
+/* Utilities */
+.text-center { text-align: center; }
+.border-bottom { border-bottom: 1px solid rgba(0, 255, 65, 0.2); }
+.border-left { border-left: 1px solid rgba(0, 255, 65, 0.2); }
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+.flex-3 { flex: 3; }
+
+/* Labels */
+.label-tiny {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.6;
+    margin-bottom: 5px;
+    display: block;
+}
+
+/* Toggle Buttons */
+.toggle-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    color: var(--crt-green);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-btn:hover {
+    background: rgba(0, 255, 65, 0.1);
+}
+
+.circular-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+.square-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 2px;
+}
+
+.toggle-btn.active {
+    background-color: var(--crt-green);
+    color: black;
+    border-color: var(--crt-green);
+    box-shadow: 0 0 15px var(--crt-green);
+}
+
+/* Header section styling */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    padding-bottom: 24px;
+    height: 160px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    flex: 1;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+}
+
+.branding {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.logo {
+    font-size: 64px;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 0.85;
+}
+
+.taglines {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.tagline {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.6;
+}
+
+.subtagline {
+    font-size: 12px;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+/* Loop section styling */
+.loop-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-left: 30px;
+    margin-left: 10px;
+}
+
+.segmented-control {
+    display: flex;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+}
+
+.segment-btn {
+    background: transparent;
+    border: none;
+    color: var(--crt-green);
+    padding: 6px 12px;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.segment-btn:not(:last-child) {
+    border-right: 1px solid rgba(0, 255, 65, 0.4);
+}
+
+.segment-btn:hover {
+    background: rgba(0, 255, 65, 0.1);
+}
+
+.segment-btn.active {
+    background: var(--crt-green);
+    color: black;
+}
+
+/* Delay Matrix styling */
+.delay-matrix-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 380px;
+    margin-left: 20px;
+}
+
+.section-label {
+    opacity: 0.6;
+    margin-bottom: 2px;
+}
+
+.matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+}
+
+.matrix-btn {
+    background: #121212;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    color: var(--crt-green);
+    font-size: 11px;
+    font-weight: 700;
+    height: 36px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: -1px;
+    margin-top: -1px;
+    transition: all 0.2s ease;
+}
+
+.matrix-btn:hover {
+    background: rgba(0, 255, 65, 0.1);
+    z-index: 10;
+}
+
+.matrix-btn.active {
+    background: var(--crt-green);
+    color: black;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+    border-color: var(--crt-green);
+    z-index: 10;
+}
+
+/* Delay time footer elements */
+.delay-footer {
+    display: flex;
+    align-items: stretch;
+    height: 36px;
+    margin-top: -1px;
+}
+
+.delay-footer-btn {
+    background: #121212;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    color: var(--crt-green);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: -1px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delay-footer-btn:hover {
+    background: rgba(0, 255, 65, 0.1);
+    z-index: 10;
+}
+
+.delay-footer-btn.active {
+    background: var(--crt-green);
+    color: black;
+    border-color: var(--crt-green);
+    z-index: 10;
+}
+
+.ms-drag-box {
+    background: #121212;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    color: var(--crt-green);
+    margin-left: -1px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.ms-drag-box:hover {
+    background: rgba(0, 255, 65, 0.1);
+}
+
+.ms-drag-box.active {
+    background: var(--crt-green);
+    color: black;
+    border-color: var(--crt-green);
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+}
+
+.ms-drag-box span {
+    font-size: 14px;
+    font-weight: 900;
+}
+
+/* Lanes workspace styling */
+.lanes-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    margin-top: 20px;
+}
+
+.lane-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.lane-title-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.lane-title {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+}
+
+.lane-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: rgba(0, 255, 65, 0.6);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    color: var(--crt-green);
+    border-color: rgba(0, 255, 65, 0.3);
+}
+
+.action-btn:active {
+    background: var(--crt-green);
+    color: black;
+}
+
+/* Grid of steps inside a lane */
+.steps-grid {
+    display: flex;
+    gap: 4px;
+    padding: 0 4px;
+    position: relative;
+}
+
+.bipolar-center-line {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    height: 1px;
+    background: rgba(0, 255, 65, 0.15);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Single Step Column */
+.step-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    cursor: crosshair;
+    transition: opacity 0.3s ease;
+}
+
+.step-column.inactive {
+    opacity: 0.2;
+}
+
+.step-bar-container {
+    flex: 1;
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    background-color: #121212;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Step heights & indicators */
+.step-bar-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--crt-green);
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+    pointer-events: none;
+}
+
+.step-bar-bipolar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background-color: var(--crt-green);
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+    pointer-events: none;
+}
+
+.step-mute-box {
+    width: 100%;
+    height: 100%;
+    transition: background-color 0.2s ease;
+}
+
+.step-mute-box.unmuted {
+    background-color: var(--crt-green);
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
+.step-mute-box.muted {
+    background-color: rgba(0, 255, 65, 0.05);
+}
+
+.step-value-label {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16.5px;
+    font-weight: 900;
+    margin-top: 2px;
+    pointer-events: none;
+}
+
+/* Step Count Slider */
+.step-count-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    padding-bottom: 8px;
+}
+
+.step-count-track {
+    height: 24px;
+    background: #1a1a1a;
+    border: 1px solid #333333;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+.step-count-segment {
+    flex: 1;
+    background-color: rgba(0, 255, 65, 0.05);
+    transition: background-color 0.2s ease;
+}
+
+.step-count-segment.active {
+    background-color: var(--crt-green);
+    box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+}

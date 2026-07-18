@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHER // Polyphonic MIDI Delay</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="crt-overlay"></div>
+    <div id="app-container">
+        <!-- Main Panel Header -->
+        <header class="main-header border-bottom">
+            <div class="header-left">
+                <!-- Power switch -->
+                <div class="control-group text-center">
+                    <span class="label-tiny">POWER</span>
+                    <button id="power-btn" class="toggle-btn circular-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                            <line x1="12" y1="2" x2="12" y2="12" />
+                        </svg>
+                    </button>
+                </div>
+                <!-- Branding -->
+                <div class="branding">
+                    <h1 class="logo crt-glow">AETHER</h1>
+                    <div class="taglines">
+                        <span class="tagline">POLYPHONIC MIDI DELAY</span>
+                        <span class="tagline subtagline">BY DARKINTEGER</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loop controls -->
+            <div class="loop-container border-left">
+                <div class="control-group text-center">
+                    <span class="label-tiny">LOOP</span>
+                    <button id="loop-btn" class="toggle-btn square-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="17 1 21 5 17 9"></polyline>
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                            <polyline points="7 23 3 19 7 15"></polyline>
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="control-group">
+                    <span class="label-tiny text-center">MODE</span>
+                    <div class="segmented-control">
+                        <button class="segment-btn active" data-mode="forward">FORWARD</button>
+                        <button class="segment-btn" data-mode="pendulum">PENDULUM</button>
+                        <button class="segment-btn" data-mode="random">RANDOM</button>
+                    </div>
+                </div>
+                <div class="control-group text-center">
+                    <span class="label-tiny">NOTE RESTART</span>
+                    <button id="restart-btn" class="toggle-btn square-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                            <path d="M3 3v5h5"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Delay Time / Division Matrix -->
+            <div class="delay-matrix-container">
+                <span class="label-tiny section-label">DELAY TIME MATRIX</span>
+                <div class="matrix-grid">
+                    <!-- Row 1: Straight -->
+                    <button class="matrix-btn" data-div="1/1">1/1</button>
+                    <button class="matrix-btn" data-div="1/2">1/2</button>
+                    <button class="matrix-btn" data-div="1/4">1/4</button>
+                    <button class="matrix-btn" data-div="1/8">1/8</button>
+                    <button class="matrix-btn" data-div="1/16">1/16</button>
+                    <button class="matrix-btn" data-div="1/32">1/32</button>
+
+                    <!-- Row 2: Dotted -->
+                    <button class="matrix-btn" data-div="1/1d">1/1D</button>
+                    <button class="matrix-btn" data-div="1/2d">1/2D</button>
+                    <button class="matrix-btn" data-div="1/4d">1/4D</button>
+                    <button class="matrix-btn" data-div="1/8d">1/8D</button>
+                    <button class="matrix-btn" data-div="1/16d">1/16D</button>
+                    <button class="matrix-btn" data-div="1/32d">1/32D</button>
+
+                    <!-- Row 3: Triplet -->
+                    <button class="matrix-btn" data-div="1/1t">1/1T</button>
+                    <button class="matrix-btn" data-div="1/2t">1/2T</button>
+                    <button class="matrix-btn" data-div="1/4t">1/4T</button>
+                    <button class="matrix-btn" data-div="1/8t">1/8T</button>
+                    <button class="matrix-btn" data-div="1/16t">1/16T</button>
+                    <button class="matrix-btn" data-div="1/32t">1/32T</button>
+                </div>
+                <!-- Delay Time Footer Row (Manual, Value, Kill) -->
+                <div class="delay-footer">
+                    <button id="kill-btn" class="delay-footer-btn flex-2">KILL ON STOP</button>
+                    <button id="manual-btn" class="delay-footer-btn flex-3">MANUAL (MS)</button>
+                    <div id="ms-value-box" class="ms-drag-box flex-1">
+                        <span id="ms-value-text">500</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Lanes Workspace -->
+        <main class="lanes-workspace">
+            <!-- Lane templates generated dynamically in app.js -->
+            <div id="lanes-container"></div>
+
+            <!-- Step Count Lane -->
+            <div class="step-count-container">
+                <div class="step-count-header">
+                    <span id="step-count-label" class="label-tiny">STEP COUNT: 15</span>
+                </div>
+                <div id="step-count-track" class="step-count-track">
+                    <!-- 15 segments generated dynamically in app.js -->
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

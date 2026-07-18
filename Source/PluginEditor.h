@@ -91,9 +91,13 @@ public:
                 const auto urlToRetrieve = url == "/" ? juce::String ("index.html")
                                                       : url.fromFirstOccurrenceOf ("/", false, false);
 
-                // Serve index.html from BinaryData
+                // Serve resources from BinaryData
                 if (urlToRetrieve == "index.html")
                     return retrieveResource (BinaryData::index_html, BinaryData::index_htmlSize, "text/html");
+                if (urlToRetrieve.contains ("app.js"))
+                    return retrieveResource (BinaryData::app_js, BinaryData::app_jsSize, "application/javascript");
+                if (urlToRetrieve.contains ("styles.css"))
+                    return retrieveResource (BinaryData::styles_css, BinaryData::styles_cssSize, "text/css");
 
                 return std::nullopt;
             })

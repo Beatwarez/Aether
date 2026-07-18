@@ -15,8 +15,9 @@
       <FILE id="I2RSpx" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
     </GROUP>
     <GROUP id="{A24C9EBC-87D9-4B53-9382-772159846CDE}" name="Resources">
-      <FILE id="index_html" name="index.html" compile="0" resource="1"
-            file="aistudio/dist/index.html"/>
+      <FILE id="index_html" name="index.html" compile="0" resource="1" file="index.html"/>
+      <FILE id="app_js" name="app.js" compile="0" resource="1" file="app.js"/>
+      <FILE id="styles_css" name="styles.css" compile="0" resource="1" file="styles.css"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>
