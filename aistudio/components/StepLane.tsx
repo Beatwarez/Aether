@@ -117,7 +117,7 @@ export const StepLane: React.FC<StepLaneProps> = ({
       
       <div 
         ref={laneRef}
-        className={`${property === 'muted' ? 'h-44' : 'h-32'} bg-transparent flex items-stretch gap-[4px] relative overflow-hidden px-1`}
+        className={`${property === 'muted' ? 'h-6' : 'h-32'} bg-transparent flex items-stretch gap-[4px] relative overflow-hidden px-1`}
       >
         {isBipolar && (
           <div 
