@@ -1,4 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
+const BUILD_VERSION = 'build f2f453c';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -597,6 +598,12 @@ const aetherUI = {
 
 // Register bridge functions on mount
 window.aetherUI = aetherUI;
+
+// Show build version in the bottom-right corner
+(function() {
+    const el = document.getElementById('build-version-label');
+    if (el) el.textContent = BUILD_VERSION;
+})();
 
 // Initialize app layout
 buildLanes();

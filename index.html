@@ -9,6 +9,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
+<style>
+    #build-version-label {
+        position: absolute;
+        bottom: 6px;
+        right: 10px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 9px;
+        color: rgba(255,255,255,0.22);
+        letter-spacing: 0.04em;
+        pointer-events: none;
+        z-index: 9999;
+        user-select: none;
+    }
+</style>
 <body>
     <div class="crt-overlay"></div>
     <div id="app-container">
@@ -121,6 +135,7 @@
                 </div>
             </div>
         </main>
+        <div id="build-version-label"></div>
     </div>
     <script src="app.js"></script>
 </body>
