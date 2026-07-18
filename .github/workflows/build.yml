@@ -1,4 +1,4 @@
-# Trigger rebuild with updated Apple secrets
+# Trigger rebuild with Algebra Within install paths
 name: Build & Package Aether Plugin
 
 on:
@@ -187,14 +187,14 @@ jobs:
           AU_PATH=$(find Builds/MacOSX/build -name "Aether.component" -type d | head -n 1)
           
           # Create installation directories
-          mkdir -p pkgroot/Library/Audio/Plug-Ins/VST3
+          mkdir -p pkgroot/Library/Audio/Plug-Ins/VST3/Algebra\ Within
           mkdir -p pkgroot/Library/Audio/Plug-Ins/Components
-          cp -R "$VST3_PATH" pkgroot/Library/Audio/Plug-Ins/VST3/
+          cp -R "$VST3_PATH" pkgroot/Library/Audio/Plug-Ins/VST3/Algebra\ Within/
           cp -R "$AU_PATH" pkgroot/Library/Audio/Plug-Ins/Components/
           
           # Build package component
           pkgbuild --root pkgroot \
-                   --identifier com.darkInteger.Aether.pkg \
+                   --identifier com.AlgebraWithin.Aether.pkg \
                    --version 1.0.0 \
                    --install-location / \
                    AetherComponent.pkg

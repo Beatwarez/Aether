@@ -3,8 +3,8 @@
 [Setup]
 AppName=Aether
 AppVersion=1.0.0
-AppPublisher=darkInteger
-DefaultDirName={commoncf}\VST3\Aether.vst3
+AppPublisher=Algebra Within
+DefaultDirName={commoncf}\VST3\Algebra Within\Aether.vst3
 DisableDirPage=yes
 UsePreviousAppDir=no
 OutputBaseFilename=Aether_Windows_Installer
