@@ -20,7 +20,7 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor (AetherAudioProcessor& p)
     setResizable (true, true);
     getConstrainer()->setFixedAspectRatio (1040.0 / 1000.0);
     setResizeLimits (520, 500, 2080, 2000);
-    setSize (1040, 1000);
+    setSize (832, 800);
 }
 
 // ==========================================================================

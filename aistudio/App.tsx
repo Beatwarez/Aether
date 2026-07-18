@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { INITIAL_STATE, PluginState, Step } from './types';
 import { StepLane } from './components/StepLane';
-import { CodeExporter } from './components/CodeExporter';
 
 const SYNC_STRAIGHT = ['1/1', '1/2', '1/4', '1/8', '1/16', '1/32'];
 const SYNC_DOTTED = ['1/1d', '1/2d', '1/4d', '1/8d', '1/16d', '1/32d'];
@@ -24,7 +23,21 @@ const sendParamToCpp = (param: string, val: any) => {
 
 export const App: React.FC = () => {
   const [state, setState] = useState<PluginState>(INITIAL_STATE);
-  const [isExporterOpen, setIsExporterOpen] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // run initially
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const scaleX = dimensions.width / 1040;
+  const scaleY = dimensions.height / 1000;
+  const scale = Math.min(scaleX, scaleY);
+
   const stepCountRef = useRef<HTMLDivElement>(null);
   const isDraggingStepCount = useRef(false);
   
@@ -213,19 +226,18 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen items-center justify-center p-4 bg-[#050505]">
-      {isExporterOpen && <CodeExporter onClose={() => setIsExporterOpen(false)} />}
-
-      <div className="mb-4">
-        <button 
-          onClick={() => setIsExporterOpen(true)}
-          className="px-6 py-2 border border-[#00ff41]/40 text-[#00ff41] text-[10px] font-bold uppercase tracking-widest hover:bg-[#00ff41] hover:text-black transition-all cursor-pointer shadow-[0_0_10px_rgba(0,255,65,0.1)]"
-        >
-          Export C++ Files (JUCE)
-        </button>
-      </div>
-
-      <div className={`w-full max-w-[1040px] h-fit bg-[#121212] crt-border p-8 flex flex-col gap-4 overflow-hidden relative transition-opacity duration-500 ${!state.isEnabled ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
+    <div className="w-screen h-screen bg-[#050505] overflow-hidden relative">
+      <div 
+        style={{
+          width: '1040px',
+          height: '1000px',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: 'center center'
+        }}
+        className={`bg-[#121212] crt-border p-8 flex flex-col justify-between overflow-hidden relative transition-opacity duration-500 ${!state.isEnabled ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
         
         <div className="flex justify-between items-center border-b border-green-500/20 pb-6">
           <div className="flex items-center gap-8">
