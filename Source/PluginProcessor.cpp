@@ -371,9 +371,8 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   std::unique_ptr<juce::XmlElement> xml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
   if (xml != nullptr) {
-    auto newTree = juce::ValueTree::fromXml(*xml);
-    if (newTree.isValid()) {
-      apvts.state.copyPropertiesAndChildrenFrom(newTree, nullptr);
+    if (xml->hasTagName (apvts.state.getType())) {
+      apvts.replaceState (juce::ValueTree::fromXml (*xml));
     }
     if (auto *sequenceXml = xml->getChildByName("SEQUENCE")) {
       for (auto *stepXml : sequenceXml->getChildIterator()) {
