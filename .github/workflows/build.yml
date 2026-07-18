@@ -83,14 +83,16 @@ jobs:
 
           if [ -n "$MACOS_CERTIFICATE" ]; then
             python3 -c "import base64, os; s=os.environ['MACOS_CERTIFICATE'].replace('\r', '').replace('\n', '').replace(' ', ''); s += '=' * (-len(s) % 4); open(os.environ['RUNNER_TEMP'] + '/certificate.p12', 'wb').write(base64.b64decode(s))"
-            MACOS_CERTIFICATE_PASSWORD_CLEANED=$(echo -n "$MACOS_CERTIFICATE_PASSWORD" | xargs)
-            security import $RUNNER_TEMP/certificate.p12 -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD_CLEANED" -T /usr/bin/codesign -T /usr/bin/security
+            echo "Certificate size: $(wc -c < $RUNNER_TEMP/certificate.p12) bytes"
+            file $RUNNER_TEMP/certificate.p12
+            security import $RUNNER_TEMP/certificate.p12 -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           fi
 
           if [ -n "$MACOS_INSTALLER_CERTIFICATE" ]; then
             python3 -c "import base64, os; s=os.environ['MACOS_INSTALLER_CERTIFICATE'].replace('\r', '').replace('\n', '').replace(' ', ''); s += '=' * (-len(s) % 4); open(os.environ['RUNNER_TEMP'] + '/installer.p12', 'wb').write(base64.b64decode(s))"
-            MACOS_INSTALLER_CERTIFICATE_PASSWORD_CLEANED=$(echo -n "$MACOS_INSTALLER_CERTIFICATE_PASSWORD" | xargs)
-            security import $RUNNER_TEMP/installer.p12 -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERTIFICATE_PASSWORD_CLEANED" -T /usr/bin/productsign -T /usr/bin/security
+            echo "Installer size: $(wc -c < $RUNNER_TEMP/installer.p12) bytes"
+            file $RUNNER_TEMP/installer.p12
+            security import $RUNNER_TEMP/installer.p12 -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productsign -T /usr/bin/security
           fi
           
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
