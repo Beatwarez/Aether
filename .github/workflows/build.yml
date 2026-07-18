@@ -1,4 +1,4 @@
-# Trigger rebuild with final updated secrets
+# Trigger rebuild with untruncated secrets
 name: Build & Package Aether Plugin
 
 on:
