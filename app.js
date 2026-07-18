@@ -35,8 +35,19 @@ let msStartY = 0;
 let msStartValue = 500;
 
 // Bridge: Send call to C++
+let juceBridgeReady = false;
+const juceMessageQueue = [];
+
 function sendParamToCpp(param, val) {
-    if (window.__JUCE__ && window.__JUCE__.backend) {
+    if (juceBridgeReady) {
+        const resultId = Math.floor(Math.random() * 1000000);
+        window.__JUCE__.backend.emitEvent("__juce__invoke", {
+            name: "sendParamToCpp",
+            params: [param, val],
+            resultId: resultId
+        });
+    } else if (window.__JUCE__ && window.__JUCE__.backend) {
+        juceBridgeReady = true;
         const resultId = Math.floor(Math.random() * 1000000);
         window.__JUCE__.backend.emitEvent("__juce__invoke", {
             name: "sendParamToCpp",
@@ -44,9 +55,24 @@ function sendParamToCpp(param, val) {
             resultId: resultId
         });
     } else {
-        console.log("C++ Bridge Call: " + param + " = " + val);
+        juceMessageQueue.push({ param, val });
+        console.log("C++ Bridge Call Queued: " + param + " = " + val);
     }
 }
+
+function checkJuceBridge() {
+    if (window.__JUCE__ && window.__JUCE__.backend) {
+        juceBridgeReady = true;
+        console.log("JUCE Bridge is ready. Flushing queue of length: " + juceMessageQueue.length);
+        while (juceMessageQueue.length > 0) {
+            const msg = juceMessageQueue.shift();
+            sendParamToCpp(msg.param, msg.val);
+        }
+    } else {
+        setTimeout(checkJuceBridge, 30);
+    }
+}
+checkJuceBridge();
 
 // --------------------------------------------------------------------------
 // UI Layout Builders
