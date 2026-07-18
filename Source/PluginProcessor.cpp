@@ -288,52 +288,53 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
       }
     }
   }
-
+  float delayVal = smoothedDelaySamples.getCurrentValue();
   for (int sample = 0; sample < numSamples; ++sample) {
-    float currentDelaySamples = smoothedDelaySamples.getNextValue();
-    long long currentTime = totalSamplesProcessed + sample;
-
-    for (auto it = midiQueue.begin(); it != midiQueue.end();) {
-      long long eventTargetTime =
-          it->triggerSample + (long long)(currentDelaySamples * it->tapIndex);
-      if (eventTargetTime <= currentTime) {
-        midiMessages.addEvent(it->message, sample);
-
-        if (it->message.isNoteOn()) {
-          int ch = it->message.getChannel();
-          int note = it->message.getNoteNumber();
-          if (std::find(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)) == activeNotes.end()) {
-            activeNotes.push_back({ch, note});
-          }
-        } else if (it->message.isNoteOff()) {
-          int ch = it->message.getChannel();
-          int note = it->message.getNoteNumber();
-          activeNotes.erase(std::remove(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)), activeNotes.end());
-        }
-
-        // Loop continuation: when a looped note-on fires, schedule the next
-        if (it->message.isNoteOn() && pLoopEnabled &&
-            noteTracker.count(it->noteKey)) {
-          auto &ns = noteTracker[it->noteKey];
-
-          // Kill the note that just fired (schedule kill 1 delay period from
-          // now)
-          int thisNote =
-              juce::jlimit(0, 127, ns.noteNumber + ns.pitchCaps[it->stepIndex]);
-          additions.push_back({juce::MidiMessage::noteOff(ns.channel, thisNote),
-                               currentTime, 1, it->stepIndex, it->noteKey});
-
-          // Find and schedule the next step
-          auto [nextI, taps] = findNextStep(ns, ns.currentStepIndex);
-          scheduleLoopEvents(ns, nextI, taps, currentTime, it->noteKey);
-        }
-
-        it = midiQueue.erase(it);
-      } else {
-        ++it;
-      }
-    }
+    smoothedDelaySamples.getNextValue();
   }
+
+  for (auto it = midiQueue.begin(); it != midiQueue.end();) {
+    long long eventTargetTime =
+        it->triggerSample + (long long)(delayVal * it->tapIndex);
+    if (eventTargetTime < totalSamplesProcessed + numSamples) {
+      int sampleOffset = (int)(eventTargetTime - totalSamplesProcessed);
+      sampleOffset = juce::jlimit(0, numSamples - 1, sampleOffset);
+
+      midiMessages.addEvent(it->message, sampleOffset);
+
+      if (it->message.isNoteOn()) {
+        int ch = it->message.getChannel();
+        int note = it->message.getNoteNumber();
+        if (std::find(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)) == activeNotes.end()) {
+          activeNotes.push_back({ch, note});
+        }
+      } else if (it->message.isNoteOff()) {
+        int ch = it->message.getChannel();
+        int note = it->message.getNoteNumber();
+        activeNotes.erase(std::remove(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)), activeNotes.end());
+      }
+
+      // Loop continuation: when a looped note-on fires, schedule the next
+      if (it->message.isNoteOn() && pLoopEnabled &&
+          noteTracker.count(it->noteKey)) {
+        auto &ns = noteTracker[it->noteKey];
+
+        // Kill the note that just fired (schedule kill 1 delay period from now)
+        int thisNote =
+            juce::jlimit(0, 127, ns.noteNumber + ns.pitchCaps[it->stepIndex]);
+        additions.push_back({juce::MidiMessage::noteOff(ns.channel, thisNote),
+                             eventTargetTime, 1, it->stepIndex, it->noteKey});
+
+        // Find and schedule the next step
+        auto [nextI, taps] = findNextStep(ns, ns.currentStepIndex);
+        scheduleLoopEvents(ns, nextI, taps, eventTargetTime, it->noteKey);
+      }
+
+      it = midiQueue.erase(it);
+    } else {
+      ++it;
+    }
+  } }
 
   // Safely add all newly scheduled events to the main queue
   for (auto &e : additions)
@@ -370,7 +371,10 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   std::unique_ptr<juce::XmlElement> xml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
   if (xml != nullptr) {
-    apvts.replaceState(juce::ValueTree::fromXml(*xml));
+    auto newTree = juce::ValueTree::fromXml(*xml);
+    if (newTree.isValid()) {
+      apvts.state.copyPropertiesAndChildrenFrom(newTree, nullptr);
+    }
     if (auto *sequenceXml = xml->getChildByName("SEQUENCE")) {
       for (auto *stepXml : sequenceXml->getChildIterator()) {
         int i = stepXml->getIntAttribute("id");
