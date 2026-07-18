@@ -371,9 +371,11 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   std::unique_ptr<juce::XmlElement> xml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
   if (xml != nullptr) {
-    if (xml->hasTagName (apvts.state.getType())) {
-      apvts.replaceState (juce::ValueTree::fromXml (*xml));
-    }
+    // Read step sequence BEFORE calling replaceState.
+    // We also remove it from the XML so APVTS never stores SEQUENCE as a child
+    // of its ValueTree — otherwise copyState() would embed a stale SEQUENCE
+    // on the next getStateInformation, creating duplicate SEQUENCE elements
+    // that corrupt step data across save/load cycles.
     if (auto *sequenceXml = xml->getChildByName("SEQUENCE")) {
       for (auto *stepXml : sequenceXml->getChildIterator()) {
         int i = stepXml->getIntAttribute("id");
@@ -385,6 +387,12 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
           steps[i].muted = stepXml->getBoolAttribute("mute");
         }
       }
+      // Remove SEQUENCE so it doesn't pollute the APVTS ValueTree
+      xml->removeChildElement(sequenceXml, true);
+    }
+    // Now load APVTS params cleanly (no SEQUENCE child)
+    if (xml->hasTagName (apvts.state.getType())) {
+      apvts.replaceState (juce::ValueTree::fromXml (*xml));
     }
   }
 }

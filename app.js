@@ -601,4 +601,7 @@ window.aetherUI = aetherUI;
 // Initialize app layout
 buildLanes();
 handleWindowResize();
-// State will be pushed automatically by C++ via the timer after pageFinishedLoading resets the caches.
+// Request a full state sync from C++. This is queued via checkJuceBridge and fires
+// only after window.__JUCE__ is available. C++ resets its caches; the timer then
+// pushes all loaded parameter values to JS on its next tick (no reentrancy issues).
+sendParamToCpp("queryall", 0);

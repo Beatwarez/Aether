@@ -60,6 +60,7 @@ void AetherAudioProcessorEditor::timerCallback()
             if (std::abs (val - webView.localParams[p]) > 0.001f)
             {
                 webView.localParams[p] = val;
+                AetherWebView::logToFile ("timer pushing: " + paramIDs[p] + " = " + juce::String (val));
                 
                 if (paramIDs[p] == "loopMode" || paramIDs[p] == "syncDivision")
                 {
