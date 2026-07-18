@@ -598,7 +598,7 @@ const aetherUI = {
 // Register bridge functions on mount
 window.aetherUI = aetherUI;
 
-// Initialize app layout and request full C++ state
+// Initialize app layout
 buildLanes();
 handleWindowResize();
-sendParamToCpp("queryall", 0);
+// State will be pushed automatically by C++ via the timer after pageFinishedLoading resets the caches.

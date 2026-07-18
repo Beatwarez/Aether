@@ -110,7 +110,10 @@ public:
                     
                     if (paramName == "queryall")
                     {
-                        // Mark localParams to force initial sync from C++ to JS
+                        // Reset caches to sentinel values so the timer pushes full state
+                        // on its next tick (from the message thread, no reentrancy issues).
+                        // NOTE: Do NOT call evaluateJavascript here — WebView2 silently drops
+                        // JS calls made from within an active JS->C++ native function callback.
                         for (int i = 0; i < 8; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
@@ -121,10 +124,7 @@ public:
                             webViewInstance->localSteps[i].probability = -1;
                             webViewInstance->localSteps[i].muted = !p.steps[i].muted;
                         }
-                        
-                        // Push full state back to the UI immediately
-                        juce::String json = getFullStateJson (p);
-                        webViewInstance->evaluateJavascript ("if (window.aetherUI) window.aetherUI.initializeState('" + json + "');");
+                        logToFile ("queryall received: caches reset, timer will push full state.");
                     }
                     else if (paramName == "stepUpdate")
                     {
@@ -224,6 +224,26 @@ public:
             localSteps[i].probability = -1;
             localSteps[i].muted = false;
         }
+    }
+
+    // Called by JUCE when the WebView page has fully loaded.
+    // At this point window.aetherUI is already defined (set synchronously in app.js).
+    // Reset all caches to sentinel values — the timer will detect differences on its
+    // next tick and push the complete loaded state to JS safely from the message thread.
+    void pageFinishedLoading (const juce::String& /*url*/) override
+    {
+        for (int i = 0; i < 8; ++i)
+            localParams[i] = -1.0f;
+        localStepCount = -1;
+        for (int i = 0; i < 15; ++i)
+        {
+            localSteps[i].pitchOffset = -999;
+            localSteps[i].velocity    = -1;
+            localSteps[i].modwheel    = -1;
+            localSteps[i].probability = -1;
+            localSteps[i].muted       = !processor.steps[i].muted; // guaranteed mismatch
+        }
+        logToFile ("pageFinishedLoading: caches reset, timer will push full state on next tick.");
     }
 
 private:
