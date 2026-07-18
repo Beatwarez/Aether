@@ -18,9 +18,9 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor (AetherAudioProcessor& p)
 
     // Configure Editor sizing (fixed aspect ratio and resizable)
     setResizable (true, true);
-    getConstrainer()->setFixedAspectRatio (1040.0 / 1000.0);
-    setResizeLimits (520, 500, 2080, 2000);
-    setSize (832, 800);
+    getConstrainer()->setFixedAspectRatio (1040.0 / 1200.0);
+    setResizeLimits (520, 600, 2080, 2400);
+    setSize (1040, 1200);
 }
 
 // ==========================================================================
@@ -118,5 +118,5 @@ juce::String AetherAudioProcessorEditor::getStepsJson()
         stepsArray.append (juce::var (stepObj.get()));
     }
     
-    return juce::JSON::toString (stepsArray).replace ("'", "\\'");
+    return juce::JSON::toString (stepsArray, true).replace ("'", "\\'");
 }

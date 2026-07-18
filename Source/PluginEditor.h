@@ -61,7 +61,7 @@ public:
         }
         stateObj->setProperty ("steps", stepsArray);
         
-        return juce::JSON::toString (juce::var (stateObj.get())).replace ("'", "\\'");
+        return juce::JSON::toString (juce::var (stateObj.get()), true).replace ("'", "\\'");
     }
 
     static juce::WebBrowserComponent::Options getOptions (AetherWebView* webViewInstance, AetherAudioProcessor& p)

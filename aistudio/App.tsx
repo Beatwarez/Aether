@@ -35,7 +35,7 @@ export const App: React.FC = () => {
   }, []);
 
   const scaleX = dimensions.width / 1040;
-  const scaleY = dimensions.height / 1000;
+  const scaleY = dimensions.height / 1200;
   const scale = Math.min(scaleX, scaleY);
 
   const stepCountRef = useRef<HTMLDivElement>(null);
@@ -230,7 +230,7 @@ export const App: React.FC = () => {
       <div 
         style={{
           width: '1040px',
-          height: '1000px',
+          height: '1200px',
           position: 'absolute',
           top: '50%',
           left: '50%',
