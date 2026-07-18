@@ -369,7 +369,7 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
 void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   std::unique_ptr<juce::XmlElement> xml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
-  if (xml != nullptr && xml->hasTagName(apvts.state.getType())) {
+  if (xml != nullptr) {
     apvts.replaceState(juce::ValueTree::fromXml(*xml));
     if (auto *sequenceXml = xml->getChildByName("SEQUENCE")) {
       for (auto *stepXml : sequenceXml->getChildIterator()) {

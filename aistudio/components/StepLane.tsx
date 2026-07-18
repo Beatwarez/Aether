@@ -138,7 +138,7 @@ export const StepLane: React.FC<StepLaneProps> = ({
             >
               <div className="flex-1 relative border border-[#00ff41]/30 bg-[#121212]">
                 {property === 'muted' ? (
-                   <div className={`absolute inset-2 border transition-colors flex items-center justify-center z-20 ${step.muted ? 'bg-transparent border-green-900/30' : 'bg-[#00ff41] border-[#00ff41]'}`}>
+                   <div className={`w-full h-full transition-colors flex items-center justify-center z-20 ${step.muted ? 'bg-green-900/10' : 'bg-[#00ff41]'}`}>
                       {!step.muted && <div className="w-1.5 h-1.5 bg-black rounded-full shadow-[0_0_4px_#000]"></div>}
                    </div>
                 ) : isBipolar ? (
