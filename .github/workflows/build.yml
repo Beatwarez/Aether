@@ -1,4 +1,4 @@
-# Trigger rebuild with untruncated secrets
+# Trigger rebuild with updated Apple secrets
 name: Build & Package Aether Plugin
 
 on:
