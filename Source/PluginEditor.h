@@ -21,6 +21,49 @@ public:
         logFile.appendText (message + "\n");
     }
 
+    static juce::String getFullStateJson (AetherAudioProcessor& p)
+    {
+        juce::DynamicObject::Ptr stateObj = new juce::DynamicObject();
+        
+        stateObj->setProperty ("isEnabled", (bool)(p.apvts.getRawParameterValue ("enabled")->load() > 0.5f));
+        stateObj->setProperty ("delayMode", (int)p.apvts.getRawParameterValue ("syncDivision")->load() == 0 ? "ms" : "sync");
+        stateObj->setProperty ("delayTimeMs", (double)p.apvts.getRawParameterValue ("delayTimeMs")->load());
+        
+        int syncIdx = (int)p.apvts.getRawParameterValue ("syncDivision")->load();
+        juce::StringArray SYNC_DIVISIONS = {
+          "1/1", "1/2", "1/4", "1/8", "1/16", "1/32",
+          "1/1d", "1/2d", "1/4d", "1/8d", "1/16d", "1/32d",
+          "1/1t", "1/2t", "1/4t", "1/8t", "1/16t", "1/32t"
+        };
+        juce::String syncDivisionStr = (syncIdx == 0) ? "ms" : SYNC_DIVISIONS[syncIdx - 1];
+        stateObj->setProperty ("syncDivision", syncDivisionStr);
+        
+        stateObj->setProperty ("stepCount", (int)p.apvts.getRawParameterValue ("stepCount")->load());
+        stateObj->setProperty ("killOnStop", (bool)(p.apvts.getRawParameterValue ("killOnStop")->load() > 0.5f));
+        stateObj->setProperty ("isLooping", (bool)(p.apvts.getRawParameterValue ("loopEnabled")->load() > 0.5f));
+        
+        int loopModeIdx = (int)p.apvts.getRawParameterValue ("loopMode")->load();
+        juce::String loopModeStr = (loopModeIdx == 0) ? "forward" : (loopModeIdx == 1 ? "pendulum" : "random");
+        stateObj->setProperty ("loopMode", loopModeStr);
+        
+        stateObj->setProperty ("loopNoteRestart", (bool)(p.apvts.getRawParameterValue ("loopRestart")->load() > 0.5f));
+        
+        juce::var stepsArray;
+        for (int i = 0; i < 15; ++i)
+        {
+            juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
+            stepObj->setProperty ("pitch", p.steps[i].pitchOffset);
+            stepObj->setProperty ("velocity", p.steps[i].velocity);
+            stepObj->setProperty ("modwheel", p.steps[i].modwheel);
+            stepObj->setProperty ("probability", p.steps[i].probability);
+            stepObj->setProperty ("muted", p.steps[i].muted);
+            stepsArray.append (juce::var (stepObj.get()));
+        }
+        stateObj->setProperty ("steps", stepsArray);
+        
+        return juce::JSON::toString (juce::var (stateObj.get())).replace ("'", "\\'");
+    }
+
     static juce::WebBrowserComponent::Options getOptions (AetherWebView* webViewInstance, AetherAudioProcessor& p)
     {
         // Force clear WebView2 cache folder to bypass local caching
@@ -74,6 +117,10 @@ public:
                             webViewInstance->localSteps[i].probability = -1;
                             webViewInstance->localSteps[i].muted = !p.steps[i].muted;
                         }
+                        
+                        // Push full state back to the UI immediately
+                        juce::String json = getFullStateJson (p);
+                        webViewInstance->evaluateJavascript ("if (window.aetherUI) window.aetherUI.initializeState('" + json + "');");
                     }
                     else if (paramName == "stepUpdate")
                     {

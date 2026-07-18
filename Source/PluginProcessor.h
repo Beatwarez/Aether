@@ -63,6 +63,7 @@ private:
   double lastSampleRate = 44100.0;
   long long totalSamplesProcessed = 0;
   std::vector<QueuedEvent> midiQueue;
+  std::vector<std::pair<int, int>> activeNotes;
   std::map<int, NoteState> noteTracker;
 
   juce::LinearSmoothedValue<float> smoothedDelaySamples;

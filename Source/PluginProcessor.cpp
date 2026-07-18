@@ -45,6 +45,7 @@ void AetherAudioProcessor::prepareToPlay(double sampleRate,
   lastSampleRate = (sampleRate > 0) ? sampleRate : 44100.0;
   totalSamplesProcessed = 0;
   midiQueue.clear();
+  activeNotes.clear();
   noteTracker.clear();
   wasPlaying = false;
 
@@ -111,24 +112,32 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   int pStepCount = (int)*apvts.getRawParameterValue("stepCount");
   int syncIdx = (int)*apvts.getRawParameterValue("syncDivision");
 
-  // Handle STOP button: immediately clear all loop state
-  if (stopRequested.exchange(false)) {
-    for (int ch = 1; ch <= 16; ++ch)
+  auto killActiveMidiNotes = [&]() {
+    for (const auto& note : activeNotes) {
+      midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), 0);
+    }
+    for (int ch = 1; ch <= 16; ++ch) {
       midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
+    }
+    activeNotes.clear();
     midiQueue.clear();
     noteTracker.clear();
+  };
+
+  // Handle STOP button: immediately clear all loop state
+  if (stopRequested.exchange(false)) {
+    killActiveMidiNotes();
   }
 
   if (pKill && !isPlaying && wasPlaying) {
-    for (int ch = 1; ch <= 16; ++ch)
-      midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
-    midiQueue.clear();
-    noteTracker.clear();
+    killActiveMidiNotes();
   }
   wasPlaying = isPlaying;
 
   if (!pEnabled || (pKill && !isPlaying)) {
-    midiQueue.clear();
+    if (!activeNotes.empty() || !midiQueue.empty()) {
+      killActiveMidiNotes();
+    }
     totalSamplesProcessed += numSamples;
     return;
   }
@@ -289,6 +298,18 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
           it->triggerSample + (long long)(currentDelaySamples * it->tapIndex);
       if (eventTargetTime <= currentTime) {
         midiMessages.addEvent(it->message, sample);
+
+        if (it->message.isNoteOn()) {
+          int ch = it->message.getChannel();
+          int note = it->message.getNoteNumber();
+          if (std::find(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)) == activeNotes.end()) {
+            activeNotes.push_back({ch, note});
+          }
+        } else if (it->message.isNoteOff()) {
+          int ch = it->message.getChannel();
+          int note = it->message.getNoteNumber();
+          activeNotes.erase(std::remove(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)), activeNotes.end());
+        }
 
         // Loop continuation: when a looped note-on fires, schedule the next
         if (it->message.isNoteOn() && pLoopEnabled &&
