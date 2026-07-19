@@ -50,8 +50,7 @@ void AetherAudioProcessorEditor::resized()
 void AetherAudioProcessorEditor::timerCallback()
 {
     // 1. Detect active snapshot changes FIRST, before the param push loop.
-    //    This ensures localParams is invalidated before we compare values,
-    //    so the push loop will always re-push all scalar params on a snapshot change.
+    //    APVTS is the only correct source for activeSnapshot — it IS a single global param.
     int activeSnap = (int)std::round(audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
     activeSnap = juce::jlimit (0, 8, activeSnap);
 
@@ -59,12 +58,12 @@ void AetherAudioProcessorEditor::timerCallback()
     {
         webView.localActiveSnapshot = activeSnap;
 
-        // Invalidate ALL scalar param caches so the push loop below re-sends every
+        // Invalidate ALL scalar param caches so the push loop re-sends every
         // parameter value for the newly active snapshot on this same tick.
-        for (int i = 0; i < 5; ++i)   // indices 0-4: enabled, delayTimeMs, syncDivision, stepCount, killOnStop
+        for (int i = 0; i < 6; ++i)
             webView.localParams[i] = -1.0f;
 
-        // Invalidate steps cache so the loop below will push the new steps
+        // Invalidate steps cache
         for (int i = 0; i < 15; ++i)
         {
             webView.localSteps[i].pitchOffset = -999;
@@ -75,51 +74,83 @@ void AetherAudioProcessorEditor::timerCallback()
         }
     }
 
-    // 2. Sync DAW-automated/saved parameters from C++ APVTS back to JS UI
-    juce::String paramIDs[6] = { "enabled", "delayTimeMs", "syncDivision", "stepCount", "killOnStop", "activeSnapshot" };
-    
-    for (int p = 0; p < 6; ++p)
+    // 2. Push per-snapshot scalar parameters.
+    //    Read directly from snapshots[activeSnap] — the authoritative per-snapshot store.
+    //    This is exactly what processBlock does for pStepCount; we do the same here.
+    auto& snap = audioProcessor.snapshots[activeSnap];
+
+    // enabled
     {
-        if (auto* rawVal = audioProcessor.apvts.getRawParameterValue (paramIDs[p]))
+        float val = snap.enabled ? 1.0f : 0.0f;
+        if (std::abs (val - webView.localParams[0]) > 0.001f)
         {
-            float val = rawVal->load();
-            if (std::abs (val - webView.localParams[p]) > 0.001f)
-            {
-                webView.localParams[p] = val;
-                AetherWebView::logToFile ("timer pushing: " + paramIDs[p] + " = " + juce::String (val));
-                
-                if (paramIDs[p] == "syncDivision")
-                {
-                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String ((int)std::round(val)) + ");");
-                }
-                else if (paramIDs[p] == "stepCount")
-                {
-                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String ((int)std::round(val)) + ");");
-                }
-                else if (paramIDs[p] == "enabled" || paramIDs[p] == "killOnStop")
-                {
-                    bool boolVal = (val > 0.5f);
-                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + (boolVal ? "true" : "false") + ");");
-                }
-                else
-                {
-                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String (val) + ");");
-                }
-            }
+            webView.localParams[0] = val;
+            AetherWebView::logToFile ("timer pushing: enabled = " + juce::String (val));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('enabled', " + juce::String (snap.enabled ? "true" : "false") + ");");
+        }
+    }
+    // delayTimeMs
+    {
+        float val = snap.delayTimeMs;
+        if (std::abs (val - webView.localParams[1]) > 0.001f)
+        {
+            webView.localParams[1] = val;
+            AetherWebView::logToFile ("timer pushing: delayTimeMs = " + juce::String (val));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('delayTimeMs', " + juce::String (val) + ");");
+        }
+    }
+    // syncDivision
+    {
+        float val = (float)snap.syncDivision;
+        if (std::abs (val - webView.localParams[2]) > 0.001f)
+        {
+            webView.localParams[2] = val;
+            AetherWebView::logToFile ("timer pushing: syncDivision = " + juce::String (snap.syncDivision));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('syncDivision', " + juce::String (snap.syncDivision) + ");");
+        }
+    }
+    // stepCount
+    {
+        float val = (float)snap.stepCount;
+        if (std::abs (val - webView.localParams[3]) > 0.001f)
+        {
+            webView.localParams[3] = val;
+            AetherWebView::logToFile ("timer pushing: stepCount = " + juce::String (snap.stepCount));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('stepCount', " + juce::String (snap.stepCount) + ");");
+        }
+    }
+    // killOnStop
+    {
+        float val = snap.killOnStop ? 1.0f : 0.0f;
+        if (std::abs (val - webView.localParams[4]) > 0.001f)
+        {
+            webView.localParams[4] = val;
+            AetherWebView::logToFile ("timer pushing: killOnStop = " + juce::String (val));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnStop', " + juce::String (snap.killOnStop ? "true" : "false") + ");");
+        }
+    }
+    // activeSnapshot — single global param, correctly read from APVTS
+    {
+        float val = audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load();
+        if (std::abs (val - webView.localParams[5]) > 0.001f)
+        {
+            webView.localParams[5] = val;
+            AetherWebView::logToFile ("timer pushing: activeSnapshot = " + juce::String (val));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('activeSnapshot', " + juce::String ((int)std::round (val)) + ");");
         }
     }
 
-    // 3. Sync sequence steps changes from C++ back to JS
+    // 3. Sync sequence steps from C++ snapshots to JS
     bool stepsChanged = false;
     for (int i = 0; i < 15; ++i)
     {
-        if (audioProcessor.snapshots[activeSnap].steps[i].pitchOffset != webView.localSteps[i].pitchOffset ||
-            audioProcessor.snapshots[activeSnap].steps[i].velocity != webView.localSteps[i].velocity ||
-            audioProcessor.snapshots[activeSnap].steps[i].modwheel != webView.localSteps[i].modwheel ||
-            audioProcessor.snapshots[activeSnap].steps[i].probability != webView.localSteps[i].probability ||
-            audioProcessor.snapshots[activeSnap].steps[i].muted != webView.localSteps[i].muted)
+        if (snap.steps[i].pitchOffset != webView.localSteps[i].pitchOffset ||
+            snap.steps[i].velocity    != webView.localSteps[i].velocity    ||
+            snap.steps[i].modwheel    != webView.localSteps[i].modwheel    ||
+            snap.steps[i].probability != webView.localSteps[i].probability ||
+            snap.steps[i].muted       != webView.localSteps[i].muted)
         {
-            webView.localSteps[i] = audioProcessor.snapshots[activeSnap].steps[i];
+            webView.localSteps[i] = snap.steps[i];
             stepsChanged = true;
         }
     }
