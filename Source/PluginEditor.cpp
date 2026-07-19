@@ -50,9 +50,9 @@ void AetherAudioProcessorEditor::resized()
 void AetherAudioProcessorEditor::timerCallback()
 {
     // 1. Sync DAW-automated/saved parameters from C++ APVTS back to JS UI
-    juce::String paramIDs[5] = { "enabled", "delayTimeMs", "syncDivision", "stepCount", "killOnStop" };
+    juce::String paramIDs[6] = { "enabled", "delayTimeMs", "syncDivision", "stepCount", "killOnStop", "activeSnapshot" };
     
-    for (int p = 0; p < 5; ++p)
+    for (int p = 0; p < 6; ++p)
     {
         if (auto* rawVal = audioProcessor.apvts.getRawParameterValue (paramIDs[p]))
         {
@@ -79,17 +79,35 @@ void AetherAudioProcessorEditor::timerCallback()
         }
     }
 
-    // 2. Sync sequence steps changes from C++ back to JS
+    // 2. Detect active snapshot changes and invalidate steps cache if changed
+    int activeSnap = (int)audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+    activeSnap = juce::jlimit (0, 8, activeSnap);
+
+    if (activeSnap != webView.localActiveSnapshot)
+    {
+        webView.localActiveSnapshot = activeSnap;
+        // Invalidate steps cache so the loop below will push the new steps
+        for (int i = 0; i < 15; ++i)
+        {
+            webView.localSteps[i].pitchOffset = -999;
+            webView.localSteps[i].velocity = -1;
+            webView.localSteps[i].modwheel = -1;
+            webView.localSteps[i].probability = -1;
+            webView.localSteps[i].muted = !audioProcessor.steps[activeSnap][i].muted;
+        }
+    }
+
+    // 3. Sync sequence steps changes from C++ back to JS
     bool stepsChanged = false;
     for (int i = 0; i < 15; ++i)
     {
-        if (audioProcessor.steps[i].pitchOffset != webView.localSteps[i].pitchOffset ||
-            audioProcessor.steps[i].velocity != webView.localSteps[i].velocity ||
-            audioProcessor.steps[i].modwheel != webView.localSteps[i].modwheel ||
-            audioProcessor.steps[i].probability != webView.localSteps[i].probability ||
-            audioProcessor.steps[i].muted != webView.localSteps[i].muted)
+        if (audioProcessor.steps[activeSnap][i].pitchOffset != webView.localSteps[i].pitchOffset ||
+            audioProcessor.steps[activeSnap][i].velocity != webView.localSteps[i].velocity ||
+            audioProcessor.steps[activeSnap][i].modwheel != webView.localSteps[i].modwheel ||
+            audioProcessor.steps[activeSnap][i].probability != webView.localSteps[i].probability ||
+            audioProcessor.steps[activeSnap][i].muted != webView.localSteps[i].muted)
         {
-            webView.localSteps[i] = audioProcessor.steps[i];
+            webView.localSteps[i] = audioProcessor.steps[activeSnap][i];
             stepsChanged = true;
         }
     }
@@ -106,16 +124,19 @@ void AetherAudioProcessorEditor::timerCallback()
 // ==========================================================================
 juce::String AetherAudioProcessorEditor::getStepsJson()
 {
+    int activeSnap = (int)audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+    activeSnap = juce::jlimit (0, 8, activeSnap);
+
     juce::var stepsArray;
     
     for (int i = 0; i < 15; ++i)
     {
         juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
-        stepObj->setProperty ("pitch", audioProcessor.steps[i].pitchOffset);
-        stepObj->setProperty ("velocity", audioProcessor.steps[i].velocity);
-        stepObj->setProperty ("modwheel", audioProcessor.steps[i].modwheel);
-        stepObj->setProperty ("probability", audioProcessor.steps[i].probability);
-        stepObj->setProperty ("muted", audioProcessor.steps[i].muted);
+        stepObj->setProperty ("pitch", audioProcessor.steps[activeSnap][i].pitchOffset);
+        stepObj->setProperty ("velocity", audioProcessor.steps[activeSnap][i].velocity);
+        stepObj->setProperty ("modwheel", audioProcessor.steps[activeSnap][i].modwheel);
+        stepObj->setProperty ("probability", audioProcessor.steps[activeSnap][i].probability);
+        stepObj->setProperty ("muted", audioProcessor.steps[activeSnap][i].muted);
         stepsArray.append (juce::var (stepObj.get()));
     }
     

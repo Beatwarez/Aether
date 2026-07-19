@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = 'build 1.0.03';
+const BUILD_VERSION = 'build 1.0.04';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -16,6 +16,7 @@ let state = {
     syncDivision: '1/4',
     stepCount: 15,
     killOnStop: true,
+    activeSnapshot: 0,
     steps: Array.from({ length: 15 }, (_, i) => ({
         pitch: 0,
         velocity: Math.round(127 - (i * (126 / 14))),
@@ -314,6 +315,11 @@ function updateUIFromState() {
         updateStepUI("probability", i);
         updateStepUI("muted", i);
     }
+
+    // 6. Snapshot Presets Buttons
+    document.querySelectorAll(".snapshot-btn").forEach((btn, i) => {
+        btn.classList.toggle("active", i === state.activeSnapshot);
+    });
 }
 
 // Calculate and apply step value changes from drag/mouse movement
@@ -463,6 +469,16 @@ document.getElementById("kill-btn").onclick = () => {
     sendParamToCpp("killOnStop", state.killOnStop ? 1.0 : 0.0);
 };
 
+document.querySelectorAll(".snapshot-btn").forEach(btn => {
+    btn.onclick = () => {
+        if (!state.isEnabled) return;
+        const index = parseInt(btn.getAttribute("data-index"));
+        state.activeSnapshot = index;
+        updateUIFromState();
+        sendParamToCpp("activeSnapshot", index + 1);
+    };
+});
+
 // Drag MS mouse registration
 document.getElementById("ms-value-box").onmousedown = (e) => {
     if (state.syncDivision !== 'ms') return;
@@ -520,6 +536,14 @@ const aetherUI = {
             const divStr = value === 0 ? 'ms' : SYNC_DIVISIONS[value - 1];
             if (state.syncDivision !== divStr) {
                 state.syncDivision = divStr;
+                updateUIFromState();
+            }
+            return;
+        }
+        if (param === 'activeSnapshot') {
+            const index = Math.round(value) - 1; // 1-indexed to 0-indexed
+            if (state.activeSnapshot !== index) {
+                state.activeSnapshot = index;
                 updateUIFromState();
             }
             return;

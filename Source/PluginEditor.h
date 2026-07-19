@@ -10,9 +10,10 @@ class AetherWebView : public juce::WebBrowserComponent
 {
 public:
     // Caches to avoid redundant C++ -> JS messages
-    float localParams[5] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+    float localParams[6] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
     DelayStep localSteps[15];
     int localStepCount = -1;
+    int localActiveSnapshot = -1;
 
     static void logToFile (const juce::String& message)
     {
@@ -23,6 +24,9 @@ public:
 
     static juce::String getFullStateJson (AetherAudioProcessor& p)
     {
+        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+        activeSnap = juce::jlimit (0, 8, activeSnap);
+
         juce::DynamicObject::Ptr stateObj = new juce::DynamicObject();
         
         stateObj->setProperty ("isEnabled", (bool)(p.apvts.getRawParameterValue ("enabled")->load() > 0.5f));
@@ -38,18 +42,19 @@ public:
         juce::String syncDivisionStr = (syncIdx == 0) ? "ms" : SYNC_DIVISIONS[syncIdx - 1];
         stateObj->setProperty ("syncDivision", syncDivisionStr);
         
-        stateObj->setProperty ("stepCount", (int)p.apvts.getRawParameterValue ("stepCount")->load());
+        stateObj->setProperty ("stepCount", p.stepCounts[activeSnap]);
         stateObj->setProperty ("killOnStop", (bool)(p.apvts.getRawParameterValue ("killOnStop")->load() > 0.5f));
+        stateObj->setProperty ("activeSnapshot", activeSnap);
         
         juce::var stepsArray;
         for (int i = 0; i < 15; ++i)
         {
             juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
-            stepObj->setProperty ("pitch", p.steps[i].pitchOffset);
-            stepObj->setProperty ("velocity", p.steps[i].velocity);
-            stepObj->setProperty ("modwheel", p.steps[i].modwheel);
-            stepObj->setProperty ("probability", p.steps[i].probability);
-            stepObj->setProperty ("muted", p.steps[i].muted);
+            stepObj->setProperty ("pitch", p.steps[activeSnap][i].pitchOffset);
+            stepObj->setProperty ("velocity", p.steps[activeSnap][i].velocity);
+            stepObj->setProperty ("modwheel", p.steps[activeSnap][i].modwheel);
+            stepObj->setProperty ("probability", p.steps[activeSnap][i].probability);
+            stepObj->setProperty ("muted", p.steps[activeSnap][i].muted);
             stepsArray.append (juce::var (stepObj.get()));
         }
         stateObj->setProperty ("steps", stepsArray);
@@ -104,18 +109,20 @@ public:
                     if (paramName == "queryall")
                     {
                         // Reset caches to sentinel values so the timer pushes full state
-                        // on its next tick (from the message thread, no reentrancy issues).
-                        // NOTE: Do NOT call evaluateJavascript here — WebView2 silently drops
-                        // JS calls made from within an active JS->C++ native function callback.
-                        for (int i = 0; i < 5; ++i)
+                        for (int i = 0; i < 6; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
+                        webViewInstance->localActiveSnapshot = -1;
+                        
+                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                        activeSnap = juce::jlimit (0, 8, activeSnap);
+                        
                         for (int i = 0; i < 15; ++i) {
                             webViewInstance->localSteps[i].pitchOffset = -999;
                             webViewInstance->localSteps[i].velocity = -1;
                             webViewInstance->localSteps[i].modwheel = -1;
                             webViewInstance->localSteps[i].probability = -1;
-                            webViewInstance->localSteps[i].muted = !p.steps[i].muted;
+                            webViewInstance->localSteps[i].muted = !p.steps[activeSnap][i].muted;
                         }
                         logToFile ("queryall received: caches reset, timer will push full state.");
                     }
@@ -128,31 +135,34 @@ public:
                             int idx = (int)jsonVar.getProperty("index", -1);
                             if (idx >= 0 && idx < 15)
                             {
+                                int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                                activeSnap = juce::jlimit (0, 8, activeSnap);
+                                
                                 juce::String prop = jsonVar.getProperty("property", "").toString();
                                 juce::var val = jsonVar.getProperty("value", 0);
                                 if (prop == "pitch")
                                 {
-                                    p.steps[idx].pitchOffset = (int)val;
+                                    p.steps[activeSnap][idx].pitchOffset = (int)val;
                                     webViewInstance->localSteps[idx].pitchOffset = (int)val;
                                 }
                                 else if (prop == "velocity")
                                 {
-                                    p.steps[idx].velocity = (int)val;
+                                    p.steps[activeSnap][idx].velocity = (int)val;
                                     webViewInstance->localSteps[idx].velocity = (int)val;
                                 }
                                 else if (prop == "modwheel")
                                 {
-                                    p.steps[idx].modwheel = (int)val;
+                                    p.steps[activeSnap][idx].modwheel = (int)val;
                                     webViewInstance->localSteps[idx].modwheel = (int)val;
                                 }
                                 else if (prop == "probability")
                                 {
-                                    p.steps[idx].probability = (int)val;
+                                    p.steps[activeSnap][idx].probability = (int)val;
                                     webViewInstance->localSteps[idx].probability = (int)val;
                                 }
                                 else if (prop == "muted")
                                 {
-                                    p.steps[idx].muted = (bool)val;
+                                    p.steps[activeSnap][idx].muted = (bool)val;
                                     webViewInstance->localSteps[idx].muted = (bool)val;
                                 }
                             }
@@ -161,10 +171,13 @@ public:
                     else if (paramName == "randomizeLane" || paramName == "resetLane")
                     {
                         juce::String prop = args[1].toString();
+                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                        activeSnap = juce::jlimit (0, 8, activeSnap);
+                        
                         juce::Random r;
                         for (int i = 0; i < 15; ++i)
                         {
-                            auto& s = p.steps[i];
+                            auto& s = p.steps[activeSnap][i];
                             if (paramName == "randomizeLane")
                             {
                                 if (prop == "pitch") s.pitchOffset = r.nextInt(juce::Range<int>(-24, 25));
@@ -186,6 +199,12 @@ public:
                     else
                     {
                         float paramValue = (float)args[1];
+                        if (paramName == "stepCount")
+                        {
+                            int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                            activeSnap = juce::jlimit (0, 8, activeSnap);
+                            p.stepCounts[activeSnap] = (int)paramValue;
+                        }
                         if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
                         {
                             rawVal->store (paramValue);
@@ -225,17 +244,26 @@ public:
     // next tick and push the complete loaded state to JS safely from the message thread.
     void pageFinishedLoading (const juce::String& /*url*/) override
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
             localParams[i] = -1.0f;
         localStepCount = -1;
+        localActiveSnapshot = -1;
+        
+        int activeSnap = (int)processor.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+        activeSnap = juce::jlimit (0, 8, activeSnap);
+        
         for (int i = 0; i < 15; ++i)
         {
             localSteps[i].pitchOffset = -999;
             localSteps[i].velocity    = -1;
             localSteps[i].modwheel    = -1;
             localSteps[i].probability = -1;
-            localSteps[i].muted       = !processor.steps[i].muted; // guaranteed mismatch
+            localSteps[i].muted       = !processor.steps[activeSnap][i].muted; // guaranteed mismatch
         }
+        
+        // Evaluate JS to pass full initial state:
+        juce::String fullStateJson = getFullStateJson (processor);
+        evaluateJavascript ("if (window.aetherUI) window.aetherUI.initializeState('" + fullStateJson + "');");
         logToFile ("pageFinishedLoading: caches reset, timer will push full state on next tick.");
     }
 

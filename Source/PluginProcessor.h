@@ -54,7 +54,8 @@ public:
   void setStateInformation(const void *data, int sizeInBytes) override;
 
   juce::AudioProcessorValueTreeState apvts;
-  std::array<DelayStep, 15> steps;
+  std::array<std::array<DelayStep, 15>, 9> steps;
+  std::array<int, 9> stepCounts;
   std::atomic<bool> stopRequested{false};
 
 private:

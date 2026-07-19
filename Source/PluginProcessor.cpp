@@ -6,12 +6,15 @@ AetherAudioProcessor::AetherAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput(
           "Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout()) {
-  for (int i = 0; i < 15; ++i) {
-    steps[i].velocity = (int)(127 - (i * (126.0 / 14.0)));
-    steps[i].modwheel = 0;
-    steps[i].probability = 100;
-    steps[i].pitchOffset = 0;
-    steps[i].muted = false;
+  for (int s = 0; s < 9; ++s) {
+    stepCounts[s] = 15;
+    for (int i = 0; i < 15; ++i) {
+      steps[s][i].velocity = (int)(127 - (i * (126.0 / 14.0)));
+      steps[s][i].modwheel = 0;
+      steps[s][i].probability = 100;
+      steps[s][i].pitchOffset = 0;
+      steps[s][i].muted = false;
+    }
   }
 }
 
@@ -27,9 +30,11 @@ AetherAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "stepCount", "Step Count", 1, 15, 15));
   layout.add(std::make_unique<juce::AudioParameterBool>("killOnStop",
-                                                        "Kill On Stop", true));
+                                                         "Kill On Stop", true));
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "syncDivision", "Sync Division", 0, 18, 0));
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      "activeSnapshot", "Active Snapshot", 1, 9, 1));
   return layout;
 }
 
@@ -102,8 +107,10 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   bool pKill = *apvts.getRawParameterValue("killOnStop");
   bool pEnabled = *apvts.getRawParameterValue("enabled");
-  int pStepCount = (int)*apvts.getRawParameterValue("stepCount");
   int syncIdx = (int)*apvts.getRawParameterValue("syncDivision");
+  int activeSnap = (int)*apvts.getRawParameterValue("activeSnapshot") - 1;
+  activeSnap = juce::jlimit(0, 8, activeSnap);
+  int pStepCount = stepCounts[activeSnap];
 
   auto killActiveMidiNotes = [&]() {
     for (const auto& note : activeNotes) {
@@ -152,7 +159,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     if (msg.isNoteOn()) {
       std::array<int, 15> cap;
       for (int i = 0; i < 15; ++i)
-        cap[i] = steps[i].pitchOffset;
+        cap[i] = steps[activeSnap][i].pitchOffset;
 
       NoteState ns;
       ns.channel = msg.getChannel();
@@ -168,7 +175,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
       // Classic: schedule all steps simultaneously
       for (int i = 0; i < pStepCount; ++i) {
-        if (steps[i].muted || random.nextInt(100) >= steps[i].probability)
+        if (steps[activeSnap][i].muted || random.nextInt(100) >= steps[activeSnap][i].probability)
           continue;
         int targetNote =
             juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
@@ -177,11 +184,11 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
              i + 1, i, noteKey});
         auto dOn = msg;
         dOn.setNoteNumber(targetNote);
-        dOn.setVelocity(steps[i].velocity / 127.0f);
+        dOn.setVelocity(steps[activeSnap][i].velocity / 127.0f);
         additions.push_back({dOn, origin + 1, i + 1, i, noteKey});
         additions.push_back({juce::MidiMessage::controllerEvent(
-                                 msg.getChannel(), 1, steps[i].modwheel),
-                             origin, i + 1, i, noteKey});
+                                 msg.getChannel(), 1, steps[activeSnap][i].modwheel),
+                              origin, i + 1, i, noteKey});
       }
     } else if (msg.isNoteOff()) {
       if (noteTracker.count(noteKey)) {
@@ -189,7 +196,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         auto &ns = noteTracker[noteKey];
         long long origin = totalSamplesProcessed + localPos;
         for (int i = 0; i < pStepCount; ++i) {
-          if (steps[i].muted)
+          if (steps[activeSnap][i].muted)
             continue;
           auto dOff = msg;
           dOff.setNoteNumber(juce::jlimit<int>(
@@ -256,16 +263,21 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
     rootXml->addChildElement(paramsXml.release());
   }
   
-  // 2. Save Sequencer Steps
-  auto *sequenceXml = rootXml->createNewChildElement("SEQUENCE");
-  for (int i = 0; i < 15; ++i) {
-    auto *stepXml = sequenceXml->createNewChildElement("STEP");
-    stepXml->setAttribute("id", i);
-    stepXml->setAttribute("pitch", steps[i].pitchOffset);
-    stepXml->setAttribute("velocity", steps[i].velocity);
-    stepXml->setAttribute("mod", steps[i].modwheel);
-    stepXml->setAttribute("prob", steps[i].probability);
-    stepXml->setAttribute("mute", steps[i].muted);
+  // Save Sequencer Snapshots
+  auto *snapshotsXml = rootXml->createNewChildElement("SNAPSHOTS");
+  for (int s = 0; s < 9; ++s) {
+    auto *snapXml = snapshotsXml->createNewChildElement("SNAPSHOT");
+    snapXml->setAttribute("id", s);
+    snapXml->setAttribute("stepCount", stepCounts[s]);
+    for (int i = 0; i < 15; ++i) {
+      auto *stepXml = snapXml->createNewChildElement("STEP");
+      stepXml->setAttribute("id", i);
+      stepXml->setAttribute("pitch", steps[s][i].pitchOffset);
+      stepXml->setAttribute("velocity", steps[s][i].velocity);
+      stepXml->setAttribute("mod", steps[s][i].modwheel);
+      stepXml->setAttribute("prob", steps[s][i].probability);
+      stepXml->setAttribute("mute", steps[s][i].muted);
+    }
   }
   
   // Debug log state saving
@@ -281,16 +293,35 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     AetherWebView::logToFile ("setStateInformation: loaded XML = \n" + rootXml->toString());
     AetherWebView::logToFile ("setStateInformation: xml tag name = " + rootXml->getTagName());
 
-    // 1. Read step sequence
-    if (auto *sequenceXml = rootXml->getChildByName("SEQUENCE")) {
+    // 1. Read step snapshots
+    if (auto *snapshotsXml = rootXml->getChildByName("SNAPSHOTS")) {
+      for (auto *snapXml : snapshotsXml->getChildIterator()) {
+        int sId = snapXml->getIntAttribute("id");
+        if (sId >= 0 && sId < 9) {
+          stepCounts[sId] = snapXml->getIntAttribute("stepCount", 15);
+          for (auto *stepXml : snapXml->getChildIterator()) {
+            int i = stepXml->getIntAttribute("id");
+            if (i >= 0 && i < 15) {
+              steps[sId][i].pitchOffset = stepXml->getIntAttribute("pitch");
+              steps[sId][i].velocity = stepXml->getIntAttribute("velocity");
+              steps[sId][i].modwheel = stepXml->getIntAttribute("mod");
+              steps[sId][i].probability = stepXml->getIntAttribute("prob");
+              steps[sId][i].muted = stepXml->getBoolAttribute("mute");
+            }
+          }
+        }
+      }
+    }
+    // Fallback: if old sequence tag exists, load it into snapshot 0
+    else if (auto *sequenceXml = rootXml->getChildByName("SEQUENCE")) {
       for (auto *stepXml : sequenceXml->getChildIterator()) {
         int i = stepXml->getIntAttribute("id");
         if (i >= 0 && i < 15) {
-          steps[i].pitchOffset = stepXml->getIntAttribute("pitch");
-          steps[i].velocity = stepXml->getIntAttribute("velocity");
-          steps[i].modwheel = stepXml->getIntAttribute("mod");
-          steps[i].probability = stepXml->getIntAttribute("prob");
-          steps[i].muted = stepXml->getBoolAttribute("mute");
+          steps[0][i].pitchOffset = stepXml->getIntAttribute("pitch");
+          steps[0][i].velocity = stepXml->getIntAttribute("velocity");
+          steps[0][i].modwheel = stepXml->getIntAttribute("mod");
+          steps[0][i].probability = stepXml->getIntAttribute("prob");
+          steps[0][i].muted = stepXml->getBoolAttribute("mute");
         }
       }
     }

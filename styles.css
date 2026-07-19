@@ -485,3 +485,50 @@ body {
     background-color: var(--crt-green);
     box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
 }
+
+/* Snapshots Preset Section */
+.snapshot-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 16px;
+    border-top: 1px solid rgba(0, 255, 65, 0.2);
+    padding-top: 12px;
+}
+
+.snapshot-radio-group {
+    display: flex;
+    gap: 8px;
+}
+
+.snapshot-btn {
+    flex: 1;
+    background: #121212;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    color: var(--crt-green);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    height: 36px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.snapshot-btn:hover {
+    background: rgba(0, 255, 65, 0.1);
+}
+
+.snapshot-btn.active {
+    background: var(--crt-green);
+    color: black;
+    border-color: var(--crt-green);
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+}
+
+/* Fix: Allow power button to be interactive when app is disabled */
+#power-btn {
+    pointer-events: auto !important;
+}
