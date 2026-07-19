@@ -43,16 +43,16 @@ AetherAudioProcessor::createParameterLayout() {
   juce::AudioProcessorValueTreeState::ParameterLayout layout;
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       "delayTimeMs", "Delay Time (ms)", 1.0f, 2000.0f, 500.0f));
-  layout.add(
-      std::make_unique<juce::AudioParameterBool>("enabled", "Enabled", true));
-  layout.add(std::make_unique<juce::AudioParameterInt>(
-      "stepCount", "Step Count", 1, 15, 15));
-  layout.add(std::make_unique<juce::AudioParameterBool>("killOnStop",
-                                                         "Kill On Stop", true));
-  layout.add(std::make_unique<juce::AudioParameterInt>(
-      "syncDivision", "Sync Division", 0, 18, 0));
-  layout.add(std::make_unique<juce::AudioParameterInt>(
-      "activeSnapshot", "Active Snapshot", 1, 9, 1));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "enabled", "Enabled", 0.0f, 1.0f, 1.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "stepCount", "Step Count", 1.0f, 15.0f, 15.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "killOnStop", "Kill On Stop", 0.0f, 1.0f, 1.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "syncDivision", "Sync Division", 0.0f, 18.0f, 0.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "activeSnapshot", "Active Snapshot", 1.0f, 9.0f, 1.0f));
   return layout;
 }
 
@@ -137,10 +137,10 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     triggerAsyncUpdate();
   }
 
-  bool pKill = *apvts.getRawParameterValue("killOnStop");
-  bool pEnabled = *apvts.getRawParameterValue("enabled");
-  int syncIdx = (int)*apvts.getRawParameterValue("syncDivision");
-  int activeSnap = (int)*apvts.getRawParameterValue("activeSnapshot") - 1;
+  bool pKill = *apvts.getRawParameterValue("killOnStop") > 0.5f;
+  bool pEnabled = *apvts.getRawParameterValue("enabled") > 0.5f;
+  int syncIdx = (int)std::round(*apvts.getRawParameterValue("syncDivision"));
+  int activeSnap = (int)std::round(*apvts.getRawParameterValue("activeSnapshot")) - 1;
   activeSnap = juce::jlimit(0, 8, activeSnap);
   int pStepCount = snapshots[activeSnap].stepCount;
 
@@ -372,12 +372,12 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
       apvts.replaceState (juce::ValueTree::fromXml (*paramsXml));
       
       // Sync the snapshots memory array with loaded APVTS parameter values for the active snapshot
-      int activeSnap = (int)apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+      int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
       activeSnap = juce::jlimit (0, 8, activeSnap);
       snapshots[activeSnap].enabled = apvts.getRawParameterValue ("enabled")->load() > 0.5f;
       snapshots[activeSnap].delayTimeMs = apvts.getRawParameterValue ("delayTimeMs")->load();
-      snapshots[activeSnap].syncDivision = (int)apvts.getRawParameterValue ("syncDivision")->load();
-      snapshots[activeSnap].stepCount = (int)apvts.getRawParameterValue ("stepCount")->load();
+      snapshots[activeSnap].syncDivision = (int)std::round(apvts.getRawParameterValue ("syncDivision")->load());
+      snapshots[activeSnap].stepCount = (int)std::round(apvts.getRawParameterValue ("stepCount")->load());
       snapshots[activeSnap].killOnStop = apvts.getRawParameterValue ("killOnStop")->load() > 0.5f;
       
       AetherWebView::logToFile ("setStateInformation: replaceState was successfully called.");
@@ -412,7 +412,7 @@ void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
 }
 
 void AetherAudioProcessor::handleAsyncUpdate() {
-  int activeSnap = (int)apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+  int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
   activeSnap = juce::jlimit (0, 8, activeSnap);
   loadSnapshotParameters (activeSnap);
 }
@@ -424,11 +424,11 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
   if (isUpdatingSnapshotParameters)
     return;
 
-  int activeSnap = (int)apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+  int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
   activeSnap = juce::jlimit (0, 8, activeSnap);
 
   if (parameterID == "activeSnapshot") {
-    int newActiveSnap = (int)newValue - 1;
+    int newActiveSnap = (int)std::round(newValue) - 1;
     newActiveSnap = juce::jlimit (0, 8, newActiveSnap);
     loadSnapshotParameters (newActiveSnap);
   } else {
@@ -437,9 +437,9 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
     else if (parameterID == "delayTimeMs")
         snapshots[activeSnap].delayTimeMs = newValue;
     else if (parameterID == "syncDivision")
-        snapshots[activeSnap].syncDivision = (int)newValue;
+        snapshots[activeSnap].syncDivision = (int)std::round(newValue);
     else if (parameterID == "stepCount")
-        snapshots[activeSnap].stepCount = (int)newValue;
+        snapshots[activeSnap].stepCount = (int)std::round(newValue);
     else if (parameterID == "killOnStop")
         snapshots[activeSnap].killOnStop = (newValue > 0.5f);
   }

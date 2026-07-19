@@ -24,37 +24,38 @@ public:
 
     static juce::String getFullStateJson (AetherAudioProcessor& p)
     {
-        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+        int activeSnap = (int)std::round(p.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
         activeSnap = juce::jlimit (0, 8, activeSnap);
+
+        auto& snap = p.snapshots[activeSnap];
 
         juce::DynamicObject::Ptr stateObj = new juce::DynamicObject();
         
-        stateObj->setProperty ("isEnabled", (bool)(p.apvts.getRawParameterValue ("enabled")->load() > 0.5f));
-        stateObj->setProperty ("delayMode", (int)p.apvts.getRawParameterValue ("syncDivision")->load() == 0 ? "ms" : "sync");
-        stateObj->setProperty ("delayTimeMs", (double)p.apvts.getRawParameterValue ("delayTimeMs")->load());
+        stateObj->setProperty ("isEnabled", snap.enabled);
+        stateObj->setProperty ("delayMode", snap.syncDivision == 0 ? "ms" : "sync");
+        stateObj->setProperty ("delayTimeMs", (double)snap.delayTimeMs);
         
-        int syncIdx = (int)p.apvts.getRawParameterValue ("syncDivision")->load();
         juce::StringArray SYNC_DIVISIONS = {
           "1/1", "1/2", "1/4", "1/8", "1/16", "1/32",
           "1/1d", "1/2d", "1/4d", "1/8d", "1/16d", "1/32d",
           "1/1t", "1/2t", "1/4t", "1/8t", "1/16t", "1/32t"
         };
-        juce::String syncDivisionStr = (syncIdx == 0) ? "ms" : SYNC_DIVISIONS[syncIdx - 1];
+        juce::String syncDivisionStr = (snap.syncDivision == 0) ? "ms" : SYNC_DIVISIONS[snap.syncDivision - 1];
         stateObj->setProperty ("syncDivision", syncDivisionStr);
         
-        stateObj->setProperty ("stepCount", p.snapshots[activeSnap].stepCount);
-        stateObj->setProperty ("killOnStop", (bool)(p.apvts.getRawParameterValue ("killOnStop")->load() > 0.5f));
+        stateObj->setProperty ("stepCount", snap.stepCount);
+        stateObj->setProperty ("killOnStop", snap.killOnStop);
         stateObj->setProperty ("activeSnapshot", activeSnap);
         
         juce::var stepsArray;
         for (int i = 0; i < 15; ++i)
         {
             juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
-            stepObj->setProperty ("pitch", p.snapshots[activeSnap].steps[i].pitchOffset);
-            stepObj->setProperty ("velocity", p.snapshots[activeSnap].steps[i].velocity);
-            stepObj->setProperty ("modwheel", p.snapshots[activeSnap].steps[i].modwheel);
-            stepObj->setProperty ("probability", p.snapshots[activeSnap].steps[i].probability);
-            stepObj->setProperty ("muted", p.snapshots[activeSnap].steps[i].muted);
+            stepObj->setProperty ("pitch", snap.steps[i].pitchOffset);
+            stepObj->setProperty ("velocity", snap.steps[i].velocity);
+            stepObj->setProperty ("modwheel", snap.steps[i].modwheel);
+            stepObj->setProperty ("probability", snap.steps[i].probability);
+            stepObj->setProperty ("muted", snap.steps[i].muted);
             stepsArray.append (juce::var (stepObj.get()));
         }
         stateObj->setProperty ("steps", stepsArray);
@@ -253,7 +254,7 @@ public:
                     else
                     {
                         float paramValue = (float)args[1];
-                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                        int activeSnap = (int)std::round(p.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
                         activeSnap = juce::jlimit (0, 8, activeSnap);
                         
                         if (paramName == "stepCount")
