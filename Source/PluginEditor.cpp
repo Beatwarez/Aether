@@ -93,7 +93,7 @@ void AetherAudioProcessorEditor::timerCallback()
             webView.localSteps[i].velocity = -1;
             webView.localSteps[i].modwheel = -1;
             webView.localSteps[i].probability = -1;
-            webView.localSteps[i].muted = !audioProcessor.steps[activeSnap][i].muted;
+            webView.localSteps[i].muted = !audioProcessor.snapshots[activeSnap].steps[i].muted;
         }
     }
 
@@ -101,13 +101,13 @@ void AetherAudioProcessorEditor::timerCallback()
     bool stepsChanged = false;
     for (int i = 0; i < 15; ++i)
     {
-        if (audioProcessor.steps[activeSnap][i].pitchOffset != webView.localSteps[i].pitchOffset ||
-            audioProcessor.steps[activeSnap][i].velocity != webView.localSteps[i].velocity ||
-            audioProcessor.steps[activeSnap][i].modwheel != webView.localSteps[i].modwheel ||
-            audioProcessor.steps[activeSnap][i].probability != webView.localSteps[i].probability ||
-            audioProcessor.steps[activeSnap][i].muted != webView.localSteps[i].muted)
+        if (audioProcessor.snapshots[activeSnap].steps[i].pitchOffset != webView.localSteps[i].pitchOffset ||
+            audioProcessor.snapshots[activeSnap].steps[i].velocity != webView.localSteps[i].velocity ||
+            audioProcessor.snapshots[activeSnap].steps[i].modwheel != webView.localSteps[i].modwheel ||
+            audioProcessor.snapshots[activeSnap].steps[i].probability != webView.localSteps[i].probability ||
+            audioProcessor.snapshots[activeSnap].steps[i].muted != webView.localSteps[i].muted)
         {
-            webView.localSteps[i] = audioProcessor.steps[activeSnap][i];
+            webView.localSteps[i] = audioProcessor.snapshots[activeSnap].steps[i];
             stepsChanged = true;
         }
     }
@@ -132,11 +132,11 @@ juce::String AetherAudioProcessorEditor::getStepsJson()
     for (int i = 0; i < 15; ++i)
     {
         juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
-        stepObj->setProperty ("pitch", audioProcessor.steps[activeSnap][i].pitchOffset);
-        stepObj->setProperty ("velocity", audioProcessor.steps[activeSnap][i].velocity);
-        stepObj->setProperty ("modwheel", audioProcessor.steps[activeSnap][i].modwheel);
-        stepObj->setProperty ("probability", audioProcessor.steps[activeSnap][i].probability);
-        stepObj->setProperty ("muted", audioProcessor.steps[activeSnap][i].muted);
+        stepObj->setProperty ("pitch", audioProcessor.snapshots[activeSnap].steps[i].pitchOffset);
+        stepObj->setProperty ("velocity", audioProcessor.snapshots[activeSnap].steps[i].velocity);
+        stepObj->setProperty ("modwheel", audioProcessor.snapshots[activeSnap].steps[i].modwheel);
+        stepObj->setProperty ("probability", audioProcessor.snapshots[activeSnap].steps[i].probability);
+        stepObj->setProperty ("muted", audioProcessor.snapshots[activeSnap].steps[i].muted);
         stepsArray.append (juce::var (stepObj.get()));
     }
     

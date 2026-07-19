@@ -42,7 +42,7 @@ public:
         juce::String syncDivisionStr = (syncIdx == 0) ? "ms" : SYNC_DIVISIONS[syncIdx - 1];
         stateObj->setProperty ("syncDivision", syncDivisionStr);
         
-        stateObj->setProperty ("stepCount", p.stepCounts[activeSnap]);
+        stateObj->setProperty ("stepCount", p.snapshots[activeSnap].stepCount);
         stateObj->setProperty ("killOnStop", (bool)(p.apvts.getRawParameterValue ("killOnStop")->load() > 0.5f));
         stateObj->setProperty ("activeSnapshot", activeSnap);
         
@@ -50,11 +50,11 @@ public:
         for (int i = 0; i < 15; ++i)
         {
             juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
-            stepObj->setProperty ("pitch", p.steps[activeSnap][i].pitchOffset);
-            stepObj->setProperty ("velocity", p.steps[activeSnap][i].velocity);
-            stepObj->setProperty ("modwheel", p.steps[activeSnap][i].modwheel);
-            stepObj->setProperty ("probability", p.steps[activeSnap][i].probability);
-            stepObj->setProperty ("muted", p.steps[activeSnap][i].muted);
+            stepObj->setProperty ("pitch", p.snapshots[activeSnap].steps[i].pitchOffset);
+            stepObj->setProperty ("velocity", p.snapshots[activeSnap].steps[i].velocity);
+            stepObj->setProperty ("modwheel", p.snapshots[activeSnap].steps[i].modwheel);
+            stepObj->setProperty ("probability", p.snapshots[activeSnap].steps[i].probability);
+            stepObj->setProperty ("muted", p.snapshots[activeSnap].steps[i].muted);
             stepsArray.append (juce::var (stepObj.get()));
         }
         stateObj->setProperty ("steps", stepsArray);
@@ -122,7 +122,7 @@ public:
                             webViewInstance->localSteps[i].velocity = -1;
                             webViewInstance->localSteps[i].modwheel = -1;
                             webViewInstance->localSteps[i].probability = -1;
-                            webViewInstance->localSteps[i].muted = !p.steps[activeSnap][i].muted;
+                            webViewInstance->localSteps[i].muted = !p.snapshots[activeSnap].steps[i].muted;
                         }
                         logToFile ("queryall received: caches reset, timer will push full state.");
                     }
@@ -142,27 +142,27 @@ public:
                                 juce::var val = jsonVar.getProperty("value", 0);
                                 if (prop == "pitch")
                                 {
-                                    p.steps[activeSnap][idx].pitchOffset = (int)val;
+                                    p.snapshots[activeSnap].steps[idx].pitchOffset = (int)val;
                                     webViewInstance->localSteps[idx].pitchOffset = (int)val;
                                 }
                                 else if (prop == "velocity")
                                 {
-                                    p.steps[activeSnap][idx].velocity = (int)val;
+                                    p.snapshots[activeSnap].steps[idx].velocity = (int)val;
                                     webViewInstance->localSteps[idx].velocity = (int)val;
                                 }
                                 else if (prop == "modwheel")
                                 {
-                                    p.steps[activeSnap][idx].modwheel = (int)val;
+                                    p.snapshots[activeSnap].steps[idx].modwheel = (int)val;
                                     webViewInstance->localSteps[idx].modwheel = (int)val;
                                 }
                                 else if (prop == "probability")
                                 {
-                                    p.steps[activeSnap][idx].probability = (int)val;
+                                    p.snapshots[activeSnap].steps[idx].probability = (int)val;
                                     webViewInstance->localSteps[idx].probability = (int)val;
                                 }
                                 else if (prop == "muted")
                                 {
-                                    p.steps[activeSnap][idx].muted = (bool)val;
+                                    p.snapshots[activeSnap].steps[idx].muted = (bool)val;
                                     webViewInstance->localSteps[idx].muted = (bool)val;
                                 }
                             }
@@ -177,7 +177,7 @@ public:
                         juce::Random r;
                         for (int i = 0; i < 15; ++i)
                         {
-                            auto& s = p.steps[activeSnap][i];
+                            auto& s = p.snapshots[activeSnap].steps[i];
                             if (paramName == "randomizeLane")
                             {
                                 if (prop == "pitch") s.pitchOffset = r.nextInt(juce::Range<int>(-24, 25));
@@ -286,7 +286,7 @@ public:
             localSteps[i].velocity    = -1;
             localSteps[i].modwheel    = -1;
             localSteps[i].probability = -1;
-            localSteps[i].muted       = !processor.steps[activeSnap][i].muted; // guaranteed mismatch
+            localSteps[i].muted       = !processor.snapshots[activeSnap].steps[i].muted; // guaranteed mismatch
         }
         
         // Evaluate JS to pass full initial state:
