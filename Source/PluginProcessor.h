@@ -41,7 +41,8 @@ struct QueuedEvent {
 };
 
 class AetherAudioProcessor : public juce::AudioProcessor,
-                             public juce::AudioProcessorValueTreeState::Listener {
+                             public juce::AudioProcessorValueTreeState::Listener,
+                             public juce::AsyncUpdater {
 public:
   AetherAudioProcessor();
   ~AetherAudioProcessor() override;
@@ -66,11 +67,16 @@ public:
   // APVTS Listener
   void parameterChanged (const juce::String& parameterID, float newValue) override;
 
+  // AsyncUpdater override
+  void handleAsyncUpdate() override;
+  void loadSnapshotParameters (int snapIdx);
+
   juce::AudioProcessorValueTreeState apvts;
   std::array<Snapshot, 9> snapshots;
   Snapshot copiedSnapshot;
   bool hasCopiedSnapshot = false;
   bool isUpdatingSnapshotParameters = false;
+  std::atomic<bool> isInitializing{ false };
   std::atomic<bool> stopRequested{false};
 
 private:

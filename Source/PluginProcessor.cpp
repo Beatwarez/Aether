@@ -124,6 +124,14 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
       isPlaying = pos->getIsPlaying();
   }
 
+  // If we just loaded a project, the host has sequentially restored the parameters.
+  // We trigger an async update on the message thread to load the correct active snapshot parameters
+  // back into the host's APVTS parameters.
+  bool expected = true;
+  if (isInitializing.compare_exchange_strong (expected, false)) {
+    triggerAsyncUpdate();
+  }
+
   bool pKill = *apvts.getRawParameterValue("killOnStop");
   bool pEnabled = *apvts.getRawParameterValue("enabled");
   int syncIdx = (int)*apvts.getRawParameterValue("syncDivision");
@@ -310,6 +318,7 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
 }
 
 void AetherAudioProcessor::setStateInformation(const void *d, int s) {
+  isInitializing = true;
   std::unique_ptr<juce::XmlElement> rootXml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
   if (rootXml != nullptr) {
@@ -323,7 +332,7 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
         if (sId >= 0 && sId < 9) {
           snapshots[sId].stepCount = snapXml->getIntAttribute("stepCount", 15);
           snapshots[sId].enabled = snapXml->getBoolAttribute("enabled", true);
-          snapshots[sId].delayTimeMs = snapXml->getDoubleAttribute("delayTimeMs", 500.0);
+          snapshots[sId].delayTimeMs = (float)snapXml->getDoubleAttribute("delayTimeMs", 500.0);
           snapshots[sId].syncDivision = snapXml->getIntAttribute("syncDivision", 0);
           snapshots[sId].killOnStop = snapXml->getBoolAttribute("killOnStop", true);
           for (auto *stepXml : snapXml->getChildIterator()) {
@@ -355,9 +364,6 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     
     // 2. Load APVTS parameters cleanly from the dedicated Parameters child
     if (auto *paramsXml = rootXml->getChildByName("Parameters")) {
-      // Temporarily set the guard to true to prevent overwriting the loaded snapshots
-      // when replaceState updates parameters.
-      isUpdatingSnapshotParameters = true;
       apvts.replaceState (juce::ValueTree::fromXml (*paramsXml));
       
       // Sync the snapshots memory array with loaded APVTS parameter values for the active snapshot
@@ -369,7 +375,6 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
       snapshots[activeSnap].stepCount = (int)apvts.getRawParameterValue ("stepCount")->load();
       snapshots[activeSnap].killOnStop = apvts.getRawParameterValue ("killOnStop")->load() > 0.5f;
       
-      isUpdatingSnapshotParameters = false;
       AetherWebView::logToFile ("setStateInformation: replaceState was successfully called.");
     } else {
       AetherWebView::logToFile ("setStateInformation: WARNING - Parameters child not found!");
@@ -379,7 +384,38 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   }
 }
 
+void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
+  isUpdatingSnapshotParameters = true;
+  auto& snap = snapshots[snapIdx];
+  
+  if (auto* p = apvts.getParameter ("enabled"))
+      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.enabled ? 1.0f : 0.0f));
+      
+  if (auto* p = apvts.getParameter ("delayTimeMs"))
+      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.delayTimeMs));
+      
+  if (auto* p = apvts.getParameter ("syncDivision"))
+      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 ((float)snap.syncDivision));
+      
+  if (auto* p = apvts.getParameter ("stepCount"))
+      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 ((float)snap.stepCount));
+      
+  if (auto* p = apvts.getParameter ("killOnStop"))
+      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.killOnStop ? 1.0f : 0.0f));
+      
+  isUpdatingSnapshotParameters = false;
+}
+
+void AetherAudioProcessor::handleAsyncUpdate() {
+  int activeSnap = (int)apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+  activeSnap = juce::jlimit (0, 8, activeSnap);
+  loadSnapshotParameters (activeSnap);
+}
+
 void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue) {
+  if (isInitializing)
+    return;
+
   if (isUpdatingSnapshotParameters)
     return;
 
@@ -387,28 +423,9 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
   activeSnap = juce::jlimit (0, 8, activeSnap);
 
   if (parameterID == "activeSnapshot") {
-    isUpdatingSnapshotParameters = true;
-    
     int newActiveSnap = (int)newValue - 1;
     newActiveSnap = juce::jlimit (0, 8, newActiveSnap);
-    auto& snap = snapshots[newActiveSnap];
-    
-    if (auto* p = apvts.getParameter ("enabled"))
-        p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.enabled ? 1.0f : 0.0f));
-        
-    if (auto* p = apvts.getParameter ("delayTimeMs"))
-        p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.delayTimeMs));
-        
-    if (auto* p = apvts.getParameter ("syncDivision"))
-        p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.syncDivision));
-        
-    if (auto* p = apvts.getParameter ("stepCount"))
-        p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.stepCount));
-        
-    if (auto* p = apvts.getParameter ("killOnStop"))
-        p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.killOnStop ? 1.0f : 0.0f));
-        
-    isUpdatingSnapshotParameters = false;
+    loadSnapshotParameters (newActiveSnap);
   } else {
     if (parameterID == "enabled")
         snapshots[activeSnap].enabled = (newValue > 0.5f);
