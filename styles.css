@@ -156,6 +156,18 @@ body {
     flex: 1;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.header-logo-right {
+    width: 255px;
+    filter: drop-shadow(0 0 8px var(--crt-green));
+    transform: translateY(-12px);
+}
+
 .control-group {
     display: flex;
     flex-direction: column;
@@ -201,7 +213,6 @@ body {
     flex-direction: column;
     gap: 4px;
     min-width: 380px;
-    padding-left: 30px;
 }
 
 .section-label {
