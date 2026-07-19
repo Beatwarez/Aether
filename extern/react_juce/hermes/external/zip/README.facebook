@@ -1,0 +1,17 @@
+# Zip Library
+https://github.com/kuba--/zip
+Version: 635ef1d1452d187e027ecdcd164fa0fafa0fd2dd
+
+Delete the line in `zip.c`:
+```
+int symlink(const char *target, const char *linkpath); // needed on Linux
+```
+
+Change this line in `miniz.h`:
+```
+#if MINIZ_X86_OR_X64_CPU
+```
+to
+```
+#if MINIZ_X86_OR_X64_CPU && !defined(HERMES_UBSAN)
+```

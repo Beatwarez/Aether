@@ -1,0 +1,616 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg-color: #121212;
+  --phosphor-green: #00FF41;
+  --phosphor-green-low: rgba(0, 255, 65, 0.2);
+  --phosphor-green-med: rgba(0, 255, 65, 0.4);
+  --font-mono: 'IBM Plex Mono', monospace;
+  --plugin-width: 1040px;
+  --plugin-height: 1000px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #000;
+  color: var(--phosphor-green);
+  font-family: var(--font-mono);
+  overflow: auto;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+}
+
+#root {
+  width: var(--plugin-width);
+  height: var(--plugin-height);
+  background-color: var(--bg-color);
+  position: relative;
+  border: 4px solid var(--phosphor-green-low);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* CRT EFFECTS */
+.crt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Scanlines */
+.scanlines {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 3px;
+}
+
+/* Vignette */
+.vignette {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle,
+      transparent 50%,
+      rgba(0, 0, 0, 0.6) 130%);
+}
+
+/* Phosphor Bloom / Glow */
+.bloom {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle,
+      rgba(0, 255, 65, 0.02) 0%,
+      transparent 70%);
+}
+
+/* Grain/Static */
+@keyframes noise {
+  0% {
+    transform: translate(0, 0)
+  }
+
+  10% {
+    transform: translate(-5%, -5%)
+  }
+
+  20% {
+    transform: translate(-10%, 5%)
+  }
+
+  30% {
+    transform: translate(5%, -10%)
+  }
+
+  40% {
+    transform: translate(-5%, 15%)
+  }
+
+  50% {
+    transform: translate(-10%, 5%)
+  }
+
+  60% {
+    transform: translate(15%, 0)
+  }
+
+  70% {
+    transform: translate(0, 10%)
+  }
+
+  80% {
+    transform: translate(-15%, 0)
+  }
+
+  90% {
+    transform: translate(10%, 5%)
+  }
+
+  100% {
+    transform: translate(5%, 0)
+  }
+}
+
+.noise {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  animation: noise 0.2s infinite;
+}
+
+/* UI COMPONENTS */
+.plugin-container {
+  padding: 40px;
+  min-height: 1000px;
+  position: relative;
+  display: block;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  position: relative;
+  height: 160px;
+}
+
+.power-button {
+  width: 50px;
+  height: 50px;
+  border: 2px solid var(--phosphor-green);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin-right: 20px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.power-button.on {
+  background-color: var(--phosphor-green);
+  color: #000;
+}
+
+.title-container h1 {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.subtitle {
+  font-size: 14px;
+  opacity: 0.6;
+  padding-left: 5px;
+}
+
+.loop-controls {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+}
+
+.loop-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.loop-mode-stack {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--phosphor-green-low);
+  padding: 5px;
+  gap: 4px;
+}
+
+.mini-label {
+  font-size: 9px;
+  text-align: center;
+  opacity: 0.5;
+  margin-bottom: 2px;
+}
+
+.loop-header {
+  font-size: 10px;
+  font-weight: bold;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.loop-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.loop-toggle,
+.restart-toggle,
+.mode-btn {
+  background: transparent;
+  border: 1px solid var(--phosphor-green-med);
+  color: var(--phosphor-green);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.loop-toggle.active,
+.restart-toggle.active,
+.mode-btn.active {
+  background: var(--phosphor-green);
+  color: #000;
+}
+
+.loop-stop-btn {
+  background: transparent;
+  border: 1px solid var(--phosphor-green-med);
+  color: var(--phosphor-green);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.1s;
+  width: 100%;
+}
+
+.loop-stop-btn:hover {
+  border-color: var(--phosphor-green);
+}
+
+.loop-stop-btn.pressed {
+  background: var(--phosphor-green);
+  color: #000;
+  transform: scale(0.97);
+}
+
+.loop-mode-container {
+  display: flex;
+  border: 1px solid var(--phosphor-green-med);
+}
+
+.loop-mode-container .mode-btn {
+  border: none;
+  border-right: 1px solid var(--phosphor-green-low);
+  padding: 4px 10px;
+}
+
+.loop-mode-container .mode-btn:last-child {
+  border-right: none;
+}
+
+/* Matrix */
+.delay-time-matrix {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+.matrix-label {
+  font-size: 10px;
+  font-weight: bold;
+  opacity: 0.6;
+  margin-bottom: 5px;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+}
+
+.matrix-btn {
+  height: 28px;
+  border: 1px solid var(--phosphor-green-med);
+  background: transparent;
+  color: var(--phosphor-green);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.matrix-btn.active {
+  background-color: var(--phosphor-green);
+  color: #000;
+}
+
+.matrix-row-4 {
+  display: flex;
+  margin-top: 0;
+}
+
+.kill-btn {
+  height: 28px;
+  border: 1px solid var(--phosphor-green-med);
+  background: transparent;
+  color: var(--phosphor-green);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.kill-btn.active {
+  background: var(--phosphor-green);
+  color: #000;
+}
+
+.manual-btn {
+  height: 28px;
+  border: 1px solid var(--phosphor-green-med);
+  background: transparent;
+  color: var(--phosphor-green);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.manual-btn.active {
+  background: var(--phosphor-green);
+  color: #000;
+}
+
+.ms-box {
+  flex: 1;
+  height: 28px;
+  border: 1px solid var(--phosphor-green-med);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  font-weight: bold;
+  opacity: 0.5;
+}
+
+.ms-box.active {
+  opacity: 1;
+}
+
+/* Lanes */
+.lanes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lane {
+  position: relative;
+}
+
+.lane-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.dice-btn,
+.reset-btn {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--phosphor-green-med);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.lane-title {
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-left: 10px;
+}
+
+.steps-grid {
+  display: flex;
+  width: 100%;
+  height: 80px;
+}
+
+.step-col {
+  flex: 1;
+  border: 1px solid var(--phosphor-green-low);
+  position: relative;
+}
+
+.step-fill {
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  width: 80%;
+  background-color: var(--phosphor-green);
+}
+
+.step-value {
+  position: absolute;
+  top: 85px;
+  width: 100%;
+  text-align: center;
+  font-size: 16.5px;
+  font-weight: bold;
+}
+
+/* Footer */
+.footer {
+  margin-top: auto;
+  padding-bottom: 10px;
+  width: 100%;
+}
+
+.step-count-label {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.step-segments {
+  display: flex;
+  width: 100%;
+  height: 25px;
+  gap: 2px;
+}
+
+.segment {
+  flex: 1;
+  background-color: #003311;
+  border: 1px solid #004411;
+}
+
+.segment.active {
+  background-color: var(--phosphor-green);
+  border-color: var(--phosphor-green);
+}
+
+/* Cleanup */
+.control-panel {
+  display: none !important;
+}
+
+/* Layout Editor Styles */
+.layout-editor-bar {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout-toggle-btn {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid var(--phosphor-green-med);
+  color: var(--phosphor-green);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: bold;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.layout-toggle-btn:hover {
+  opacity: 1;
+}
+
+.layout-toggle-btn.active {
+  background: var(--phosphor-green);
+  color: #000;
+  box-shadow: 0 0 10px var(--phosphor-green-med);
+}
+
+.layout-hint {
+  font-size: 10px;
+  opacity: 0.7;
+  letter-spacing: 0.5px;
+}
+
+.draggable-wrapper {
+  position: relative;
+  transition: outline 0.2s;
+}
+
+.draggable-wrapper.editing {
+  outline: 1px dashed var(--phosphor-green-med);
+  cursor: move;
+  background: rgba(0, 255, 65, 0.03);
+}
+
+.draggable-wrapper.editing:hover {
+  outline: 1px solid var(--phosphor-green);
+  background: rgba(0, 255, 65, 0.07);
+}
+
+.coord-label {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  background: var(--phosphor-green);
+  color: #000;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 4px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.coord-label.bottom {
+  top: auto;
+  bottom: -18px;
+}
+
+/* Resizable Styles */
+.draggable-wrapper {
+  overflow: visible !important;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  z-index: 100;
+  background-image: linear-gradient(135deg, transparent 50%, var(--phosphor-green) 50%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.draggable-wrapper.editing .react-resizable-handle {
+  opacity: 0.6;
+}
+
+.draggable-wrapper.editing:hover .react-resizable-handle {
+  opacity: 1;
+}
+
+.coord-label {
+  top: -22px !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+/* Dynamic Scaling internal elements */
+.header {
+  height: auto !important;
+}
+
+.title-section,
+.loop-controls,
+.delay-time-matrix {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.lanes-container {
+  width: 100% !important;
+}
+
+.matrix-grid {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr) !important;
+  grid-template-rows: repeat(3, 1fr) !important;
+  flex: 1 !important;
+}
+
+.matrix-btn {
+  height: 100% !important;
+}
+
+.loop-controls {
+  width: 100% !important;
+}
+
+.steps-grid {
+  width: 100% !important;
+}

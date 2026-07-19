@@ -621,7 +621,23 @@ const aetherUI = {
                 updateStepUI("muted", i);
             }
         } catch (e) {
-            console.error("Error parsing steps:", e);
+            console.error("Error parsing steps from C++:", e);
+        }
+    },
+    triggerActivity: (hits) => {
+        const cells = document.querySelectorAll('.visualizer-cell');
+        if (!cells.length) return;
+        
+        // Randomly pick 'hits' number of cells to flash
+        for (let i = 0; i < hits; i++) {
+            const randomIdx = Math.floor(Math.random() * cells.length);
+            const cell = cells[randomIdx];
+            cell.classList.add('active');
+            
+            // Remove the active class after a brief CSS animation
+            setTimeout(() => {
+                cell.classList.remove('active');
+            }, 100);
         }
     }
 };
@@ -642,3 +658,21 @@ handleWindowResize();
 // only after window.__JUCE__ is available. C++ resets its caches; the timer then
 // pushes all loaded parameter values to JS on its next tick (no reentrancy issues).
 sendParamToCpp("queryall", 0);
+
+// --------------------------------------------------------------------------
+// Visualizer Preview Setup
+function buildVisualizer() {
+    const grid = document.getElementById("visualizer-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    
+    // 2 rows * 62 columns = 124 cells
+    for (let i = 0; i < 124; i++) {
+        const cell = document.createElement("div");
+        cell.className = "visualizer-cell";
+        grid.appendChild(cell);
+    }
+}
+buildVisualizer();
+
+

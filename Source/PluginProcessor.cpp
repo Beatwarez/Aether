@@ -257,6 +257,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
       midiMessages.addEvent(it->message, sampleOffset);
 
       if (it->message.isNoteOn()) {
+        activityHits++;
         int ch = it->message.getChannel();
         int note = it->message.getNoteNumber();
         if (std::find(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)) == activeNotes.end()) {

@@ -1,0 +1,1 @@
+﻿MSBuild version 17.14.23+b0019275e for .NET Framework

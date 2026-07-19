@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AETHER // Polyphonic MIDI Delay</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
-</head>
+    </head>
 <style>
     #build-version-label {
         position: absolute;
@@ -27,7 +24,7 @@
     <div class="crt-overlay"></div>
     <div id="app-container">
         <!-- Main Panel Header -->
-        <header class="main-header border-bottom">
+        <header class="main-header">
             <div class="header-left">
                 <!-- Power switch -->
                 <div class="control-group text-center">
@@ -162,10 +159,19 @@
                     <button class="snapshot-edit-btn" data-index="8"></button>
                 </div>
             </div>
+
+            <!-- Visualizer Container -->
+            <div class="visualizer-container">
+                <div class="visualizer-grid" id="visualizer-grid">
+                    <!-- Javascript will populate 30 cells (15 cols x 2 rows) -->
+                </div>
+            </div>
         </main>
         <div id="build-version-label"></div>
     </div>
     <script src="app.js"></script>
 </body>
 </html>
+
+
 

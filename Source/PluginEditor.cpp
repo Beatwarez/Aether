@@ -167,6 +167,13 @@ void AetherAudioProcessorEditor::timerCallback()
         juce::String jsonSteps = getStepsJson();
         webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateStepsFromCpp('" + jsonSteps + "');");
     }
+
+    // 4. Send Activity Hits to Visualizer
+    int hits = audioProcessor.activityHits.exchange(0);
+    if (hits > 0)
+    {
+        webView.evaluateJavascript("if (window.aetherUI && window.aetherUI.triggerActivity) window.aetherUI.triggerActivity(" + juce::String(hits) + ");");
+    }
 }
 
 // ==========================================================================

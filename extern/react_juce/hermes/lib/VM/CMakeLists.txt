@@ -1,0 +1,222 @@
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+set(source_files
+  ArrayStorage.cpp
+  BasicBlockExecutionInfo.cpp
+  BuildMetadata.cpp
+  Callable.cpp
+  CellKind.cpp
+  CheckHeapWellFormedAcceptor.cpp
+  CodeBlock.cpp
+  Deserializer.cpp
+  DictPropertyMap.cpp
+  Domain.cpp
+  GCBase.cpp
+  GCCell.cpp
+  OrderedHashMap.cpp
+  HandleRootOwner.cpp
+  HeapSnapshot.cpp
+  HermesValue.cpp
+  HiddenClass.cpp
+  IdentifierTable.cpp
+  Interpreter.cpp InstLayout.inc Interpreter-slowpaths.cpp
+  JSArray.cpp
+  JSArrayBuffer.cpp
+  JSCallableProxy.cpp
+  JSDataView.cpp
+  JSDate.cpp
+  JSError.cpp
+  JSGenerator.cpp
+  JSObject.cpp
+  JSProxy.cpp
+  JSRegExp.cpp
+  JSRegExpStringIterator.cpp
+  JSMapImpl.cpp
+  JSNativeFunctions.cpp
+  JSTypedArray.cpp
+  JSWeakMapImpl.cpp
+  LimitedStorageProvider.cpp
+  DecoratedObject.cpp
+  HostModel.cpp
+  Operations.cpp
+  PredefinedStringIDs.cpp
+  PrimitiveBox.cpp
+  Profiler.cpp
+  Runtime.cpp Runtime-profilers.cpp
+  RuntimeModule.cpp
+  RuntimeStats.cpp
+  Profiler/ChromeTraceSerializerPosix.cpp
+  Profiler/CodeCoverageProfiler.cpp
+  Profiler/InlineCacheProfiler.cpp
+  Profiler/SamplingProfilerStub.cpp
+  Profiler/SamplingProfilerPosix.cpp
+  Serializer.cpp
+  SegmentedArray.cpp
+  SerializedLiteralParser.cpp
+  SingleObject.cpp
+  StackFrame.cpp
+  StackTracesTree.cpp
+  StorageProvider.cpp
+  StringPrimitive.cpp
+  StringView.cpp
+  SymbolRegistry.cpp
+  TimeLimitMonitor.cpp
+  TwineChar16.cpp
+  StringRefUtils.cpp
+  VTable.cpp
+  Metadata.cpp
+
+  detail/IdentifierHashTable.cpp
+
+  JSLib/Array.cpp
+  JSLib/ArrayBuffer.cpp
+  JSLib/ArrayIterator.cpp
+  JSLib/DataView.cpp
+  JSLib/TypedArray.cpp
+  JSLib/Error.cpp
+  JSLib/GeneratorFunction.cpp
+  JSLib/GeneratorPrototype.cpp
+  JSLib/GlobalObject.cpp
+  JSLib/IteratorPrototype.cpp
+  JSLib/HermesInternal.cpp
+  JSLib/HermesBuiltin.cpp
+  JSLib/Instrument.cpp
+  JSLib/Intl.cpp
+  JSLib/JSLibInternal.cpp JSLib/JSLibInternal.h
+  JSLib/RuntimeCommonStorage.cpp
+  JSLib/Map.cpp
+  JSLib/Math.cpp
+  JSLib/JSON.cpp
+  JSLib/RuntimeJSONUtils.cpp
+  JSLib/JSONLexer.cpp
+  JSLib/Object.cpp
+  JSLib/Proxy.cpp
+  JSLib/Reflect.cpp
+  JSLib/Set.cpp
+  JSLib/String.cpp
+  JSLib/StringIterator.cpp
+  JSLib/Function.cpp
+  JSLib/Number.cpp
+  JSLib/Boolean.cpp
+  JSLib/RegExp.cpp
+  JSLib/RegExpStringIterator.cpp
+  JSLib/DateUtil.cpp
+  JSLib/Sorting.cpp
+  JSLib/Symbol.cpp
+  JSLib/Date.cpp JSLib/DateUtil.cpp
+  JSLib/WeakMap.cpp
+  JSLib/WeakSet.cpp
+  JSLib/print.cpp
+  JSLib/eval.cpp
+  JSLib/escape.cpp
+  JSLib/require.cpp
+)
+
+set(jit_files
+  JIT/PoolHeap.cpp
+  JIT/ExecHeap.cpp
+  JIT/LLVMDisassembler.cpp
+  JIT/NativeDisassembler.cpp
+  JIT/DiscoverBB.cpp
+  JIT/x86-64/JIT.cpp
+  JIT/x86-64/FastJIT.cpp JIT/x86-64/FastJIT.h
+  JIT/ExternalCalls.cpp JIT/ExternalCalls.h
+  )
+
+set(HERMES_OPTIONAL_SOURCES
+  gcs/FillerCell.cpp
+  gcs/GenGC.cpp
+  gcs/MallocGC.cpp
+  gcs/OldGen.cpp
+  gcs/Space.cpp
+  gcs/YoungGen.cpp
+  gcs/GCGeneration.cpp
+  gcs/GCSegmentAddressIndex.cpp
+  gcs/GenGCNC.cpp
+  gcs/OldGenNC.cpp
+  gcs/OldGenSegmentRanges.cpp
+  gcs/YoungGenNC.cpp
+  gcs/AlignedHeapSegment.cpp
+  gcs/AlignedStorage.cpp
+  gcs/CardTableNC.cpp
+  ${jit_files}
+)
+
+if (${HERMESVM_GCKIND} STREQUAL "NONCONTIG_GENERATIONAL")
+  list(APPEND source_files gcs/AlignedHeapSegment.cpp gcs/AlignedStorage.cpp
+                           gcs/CardTableNC.cpp gcs/FillerCell.cpp
+                           gcs/CompleteMarkState.cpp gcs/GCGeneration.cpp
+                           gcs/GCSegmentAddressIndex.cpp gcs/GenGCNC.cpp
+                           gcs/OldGenNC.cpp gcs/OldGenSegmentRanges.cpp
+                           gcs/YoungGenNC.cpp)
+elseif (${HERMESVM_GCKIND} STREQUAL "MALLOC")
+  list(APPEND source_files gcs/MallocGC.cpp gcs/FillerCell.cpp)
+elseif (${HERMESVM_GCKIND} STREQUAL "HADES")
+  list(APPEND source_files
+            gcs/AlignedHeapSegment.cpp
+            gcs/AlignedStorage.cpp
+            gcs/CardTableNC.cpp
+            gcs/CompleteMarkState.cpp
+            gcs/FillerCell.cpp
+            gcs/HadesGC.cpp
+  )
+else()
+  message(WARNING "Not linking garbage collector")
+endif()
+
+list(APPEND source_files
+  Debugger/Debugger.cpp
+  JSLib/DebuggerInternal.cpp
+)
+
+# HostModel.cpp defines an abstract base class HostObjectProxy.
+# This can be (and is) implemented by code which uses rtti, and
+# therefore expects the base class to have typeinfo, so
+# HostModel.cpp must be compiled -frtti, unlike most of the VM.
+# DecoratedObject::Decoration requires it as well, as it is the
+# base class for HostObjectProxy.
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR
+    "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+  set_source_files_properties(DecoratedObject.cpp HostModel.cpp PROPERTIES COMPILE_FLAGS -frtti)
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+  set_source_files_properties(DecoratedObject.cpp HostModel.cpp PROPERTIES COMPILE_FLAGS /GR)
+endif()
+
+set(link_libs
+  hermesADT
+  hermesInst
+  hermesSupport
+  hermesParser
+  hermesPlatform
+  hermesPlatformIntl
+  hermesHBCBackend
+  # TODO: hermesInternalBytecode
+  dtoa
+  ${CORE_FOUNDATION}
+)
+
+if(HERMESVM_JIT)
+  list(APPEND source_files ${jit_files})
+
+  set(LLVM_LINK_COMPONENTS
+    AllTargetsAsmPrinters
+    AllTargetsAsmParsers
+    AllTargetsDescs
+    AllTargetsDisassemblers
+    AllTargetsInfos
+    MC
+    MCParser
+  )
+endif()
+
+add_hermes_library(hermesVMRuntime STATIC ${source_files}
+    LINK_LIBS
+    ${link_libs}
+)
+
+hermes_link_icu(hermesVMRuntime)
+
+add_subdirectory(Instrumentation)

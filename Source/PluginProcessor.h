@@ -78,6 +78,7 @@ public:
   bool isUpdatingSnapshotParameters = false;
   std::atomic<bool> isInitializing{ false };
   std::atomic<bool> stopRequested{false};
+  std::atomic<int> activityHits{0};
 
 private:
   double lastSampleRate = 44100.0;
