@@ -227,12 +227,20 @@ public:
                     else
                     {
                         float paramValue = (float)args[1];
+                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                        activeSnap = juce::jlimit (0, 8, activeSnap);
+                        
                         if (paramName == "stepCount")
-                        {
-                            int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-                            activeSnap = juce::jlimit (0, 8, activeSnap);
                             p.snapshots[activeSnap].stepCount = (int)paramValue;
-                        }
+                        else if (paramName == "enabled")
+                            p.snapshots[activeSnap].enabled = (paramValue > 0.5f);
+                        else if (paramName == "delayTimeMs")
+                            p.snapshots[activeSnap].delayTimeMs = paramValue;
+                        else if (paramName == "syncDivision")
+                            p.snapshots[activeSnap].syncDivision = (int)paramValue;
+                        else if (paramName == "killOnStop")
+                            p.snapshots[activeSnap].killOnStop = (paramValue > 0.5f);
+
                         if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
                         {
                             rawVal->store (paramValue);
