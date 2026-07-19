@@ -49,7 +49,33 @@ void AetherAudioProcessorEditor::resized()
 // ==========================================================================
 void AetherAudioProcessorEditor::timerCallback()
 {
-    // 1. Sync DAW-automated/saved parameters from C++ APVTS back to JS UI
+    // 1. Detect active snapshot changes FIRST, before the param push loop.
+    //    This ensures localParams is invalidated before we compare values,
+    //    so the push loop will always re-push all scalar params on a snapshot change.
+    int activeSnap = (int)std::round(audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
+    activeSnap = juce::jlimit (0, 8, activeSnap);
+
+    if (activeSnap != webView.localActiveSnapshot)
+    {
+        webView.localActiveSnapshot = activeSnap;
+
+        // Invalidate ALL scalar param caches so the push loop below re-sends every
+        // parameter value for the newly active snapshot on this same tick.
+        for (int i = 0; i < 5; ++i)   // indices 0-4: enabled, delayTimeMs, syncDivision, stepCount, killOnStop
+            webView.localParams[i] = -1.0f;
+
+        // Invalidate steps cache so the loop below will push the new steps
+        for (int i = 0; i < 15; ++i)
+        {
+            webView.localSteps[i].pitchOffset = -999;
+            webView.localSteps[i].velocity = -1;
+            webView.localSteps[i].modwheel = -1;
+            webView.localSteps[i].probability = -1;
+            webView.localSteps[i].muted = !audioProcessor.snapshots[activeSnap].steps[i].muted;
+        }
+    }
+
+    // 2. Sync DAW-automated/saved parameters from C++ APVTS back to JS UI
     juce::String paramIDs[6] = { "enabled", "delayTimeMs", "syncDivision", "stepCount", "killOnStop", "activeSnapshot" };
     
     for (int p = 0; p < 6; ++p)
@@ -64,7 +90,11 @@ void AetherAudioProcessorEditor::timerCallback()
                 
                 if (paramIDs[p] == "syncDivision")
                 {
-                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String ((int)val) + ");");
+                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String ((int)std::round(val)) + ");");
+                }
+                else if (paramIDs[p] == "stepCount")
+                {
+                    webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String ((int)std::round(val)) + ");");
                 }
                 else if (paramIDs[p] == "enabled" || paramIDs[p] == "killOnStop")
                 {
@@ -76,24 +106,6 @@ void AetherAudioProcessorEditor::timerCallback()
                     webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String (val) + ");");
                 }
             }
-        }
-    }
-
-    // 2. Detect active snapshot changes and invalidate steps cache if changed
-    int activeSnap = (int)audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-    activeSnap = juce::jlimit (0, 8, activeSnap);
-
-    if (activeSnap != webView.localActiveSnapshot)
-    {
-        webView.localActiveSnapshot = activeSnap;
-        // Invalidate steps cache so the loop below will push the new steps
-        for (int i = 0; i < 15; ++i)
-        {
-            webView.localSteps[i].pitchOffset = -999;
-            webView.localSteps[i].velocity = -1;
-            webView.localSteps[i].modwheel = -1;
-            webView.localSteps[i].probability = -1;
-            webView.localSteps[i].muted = !audioProcessor.snapshots[activeSnap].steps[i].muted;
         }
     }
 
