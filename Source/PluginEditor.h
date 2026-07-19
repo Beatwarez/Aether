@@ -215,13 +215,39 @@ public:
                             // Trigger parameterChanged to load parameter values of the pasted snapshot
                             p.parameterChanged ("activeSnapshot", (float)(activeSnap + 1));
                             
-                            // Invalidate local active snapshot cache to push steps to JS
+                            // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
+                            for (int i = 0; i < 6; ++i)
+                                webViewInstance->localParams[i] = -1.0f;
+                            webViewInstance->localStepCount = -1;
                             webViewInstance->localActiveSnapshot = -1;
                             logToFile ("pasteActiveSnapshot: copied state pasted into snapshot " + juce::String (activeSnap + 1) + ".");
                         }
                         else
                         {
                             logToFile ("pasteActiveSnapshot: WARNING - no copied snapshot in buffer!");
+                        }
+                    }
+                    else if (paramName == "activeSnapshot")
+                    {
+                        float paramValue = (float)args[1];
+                        
+                        // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
+                        for (int i = 0; i < 6; ++i)
+                            webViewInstance->localParams[i] = -1.0f;
+                        webViewInstance->localStepCount = -1;
+                        webViewInstance->localActiveSnapshot = -1;
+                        
+                        if (auto* rawVal = p.apvts.getRawParameterValue ("activeSnapshot"))
+                            rawVal->store (paramValue);
+                            
+                        if (auto* param = p.apvts.getParameter ("activeSnapshot"))
+                        {
+                            param->beginChangeGesture();
+                            if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
+                                rangedParam->setValueNotifyingHost (rangedParam->getNormalisableRange().convertTo0to1 (paramValue));
+                            else
+                                param->setValueNotifyingHost (paramValue);
+                            param->endChangeGesture();
                         }
                     }
                     else

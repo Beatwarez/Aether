@@ -3,8 +3,7 @@
 #include <algorithm>
 
 AetherAudioProcessor::AetherAudioProcessor()
-    : AudioProcessor(BusesProperties().withOutput(
-          "Output", juce::AudioChannelSet::stereo(), true)),
+    : AudioProcessor(BusesProperties()),
       apvts(*this, nullptr, "Parameters", createParameterLayout()) {
   for (int s = 0; s < 9; ++s) {
     snapshots[s].stepCount = 15;
@@ -118,6 +117,12 @@ double AetherAudioProcessor::getSyncTimeInMs() {
 void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                                         juce::MidiBuffer &midiMessages) {
   auto numSamples = buffer.getNumSamples();
+  
+  // Clear all audio outputs to prevent garbage/feedback noise
+  for (int i = 0; i < buffer.getNumChannels(); ++i) {
+    buffer.clear (i, 0, numSamples);
+  }
+
   bool isPlaying = false;
   if (auto *ph = getPlayHead()) {
     if (auto pos = ph->getPosition())
