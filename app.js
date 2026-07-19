@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = 'build 1.0.13';
+const BUILD_VERSION = 'build 1.0.14';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -16,6 +16,7 @@ let state = {
     syncDivision: '1/4',
     stepCount: 15,
     killOnStop: true,
+    killOnSwitch: false,
     activeSnapshot: 0,
     editSnapshot: 0,
     steps: Array.from({ length: 15 }, (_, i) => ({
@@ -303,6 +304,10 @@ function updateUIFromState() {
     document.getElementById("ms-value-box").classList.toggle("active", isMs);
     document.getElementById("ms-value-text").textContent = Math.round(state.delayTimeMs);
     document.getElementById("kill-btn").classList.toggle("active", state.killOnStop);
+    
+    // 5b. Update kill-on-switch button
+    const kosBtn = document.getElementById("kill-on-switch-btn");
+    if (kosBtn) kosBtn.classList.toggle("active", state.killOnSwitch);
 
     document.querySelectorAll(".matrix-btn").forEach(btn => {
         btn.classList.toggle("active", !isMs && btn.getAttribute("data-div") === state.syncDivision);
@@ -473,6 +478,12 @@ document.getElementById("kill-btn").onclick = () => {
     sendParamToCpp("killOnStop", state.killOnStop ? 1.0 : 0.0);
 };
 
+document.getElementById("kill-on-switch-btn").onclick = () => {
+    state.killOnSwitch = !state.killOnSwitch;
+    document.getElementById("kill-on-switch-btn").classList.toggle("active", state.killOnSwitch);
+    sendParamToCpp("killOnSwitch", state.killOnSwitch ? 1.0 : 0.0);
+};
+
 document.querySelectorAll(".snapshot-btn").forEach(btn => {
     btn.onclick = () => {
         if (!state.isEnabled) return;
@@ -586,7 +597,8 @@ const aetherUI = {
             'enabled': 'isEnabled',
             'delayTimeMs': 'delayTimeMs',
             'stepCount': 'stepCount',
-            'killOnStop': 'killOnStop'
+            'killOnStop': 'killOnStop',
+            'killOnSwitch': 'killOnSwitch'
         };
         const mappedKey = keyMap[param];
         if (mappedKey) {

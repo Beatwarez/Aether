@@ -25,6 +25,7 @@ AetherAudioProcessor::AetherAudioProcessor()
   apvts.addParameterListener ("syncDivision", this);
   apvts.addParameterListener ("stepCount", this);
   apvts.addParameterListener ("killOnStop", this);
+  apvts.addParameterListener ("killOnSwitch", this);
   apvts.addParameterListener ("activeSnapshot", this);
 }
 
@@ -34,6 +35,7 @@ AetherAudioProcessor::~AetherAudioProcessor() {
   apvts.removeParameterListener ("syncDivision", this);
   apvts.removeParameterListener ("stepCount", this);
   apvts.removeParameterListener ("killOnStop", this);
+  apvts.removeParameterListener ("killOnSwitch", this);
   apvts.removeParameterListener ("activeSnapshot", this);
 }
 
@@ -48,6 +50,8 @@ AetherAudioProcessor::createParameterLayout() {
       "stepCount", "Step Count", 1.0f, 15.0f, 15.0f));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       "killOnStop", "Kill On Stop", 0.0f, 1.0f, 1.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "killOnSwitch", "Kill On Switch", 0.0f, 1.0f, 0.0f));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       "syncDivision", "Sync Division", 0.0f, 18.0f, 0.0f));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -414,6 +418,14 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
   if (parameterID == "activeSnapshot") {
     int newActiveSnap = (int)std::round(newValue) - 1;
     newActiveSnap = juce::jlimit (0, 8, newActiveSnap);
+    
+    // Kill on switch logic
+    if (apvts.getRawParameterValue ("killOnSwitch")->load() > 0.5f) {
+      midiQueue.clear();
+      activeNotes.clear();
+      noteTracker.clear();
+    }
+    
     loadSnapshotParameters (newActiveSnap);
   } else {
     if (parameterID == "enabled")

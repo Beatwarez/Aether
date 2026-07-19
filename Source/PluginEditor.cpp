@@ -58,7 +58,7 @@ void AetherAudioProcessorEditor::timerCallback()
 
         // Invalidate ALL scalar param caches so the push loop re-sends every
         // parameter value for the newly active snapshot on this same tick.
-        for (int i = 0; i < 6; ++i)
+        for (int i = 0; i < 7; ++i)
             webView.localParams[i] = -1.0f;
 
         // Invalidate steps cache
@@ -134,6 +134,16 @@ void AetherAudioProcessorEditor::timerCallback()
             webView.localParams[5] = val;
             AetherWebView::logToFile ("timer pushing: activeSnapshot = " + juce::String (val));
             webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('activeSnapshot', " + juce::String ((int)std::round (val)) + ");");
+        }
+    }
+    // killOnSwitch (Global param — read from APVTS)
+    {
+        float val = audioProcessor.apvts.getRawParameterValue ("killOnSwitch")->load();
+        if (std::abs (val - webView.localParams[6]) > 0.001f)
+        {
+            webView.localParams[6] = val;
+            AetherWebView::logToFile ("timer pushing: killOnSwitch = " + juce::String (val));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnSwitch', " + juce::String (val > 0.5f ? "true" : "false") + ");");
         }
     }
 

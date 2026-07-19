@@ -530,6 +530,19 @@ body {
     box-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
 }
 
+.snapshot-actions .wide-action-btn {
+    width: auto;
+    padding: 0 6px;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.snapshot-actions .wide-action-btn.active {
+    background: var(--crt-green);
+    color: black;
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
 .snapshot-radio-group {
     display: flex;
     gap: 8px;
