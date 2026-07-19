@@ -10,7 +10,6 @@ AetherAudioProcessor::AetherAudioProcessor()
     snapshots[s].enabled = true;
     snapshots[s].delayTimeMs = 500.0f;
     snapshots[s].syncDivision = 0;
-    snapshots[s].killOnStop = true;
     for (int i = 0; i < 15; ++i) {
       snapshots[s].steps[i].velocity = (int)(127 - (i * (126.0 / 14.0)));
       snapshots[s].steps[i].modwheel = 0;
@@ -304,7 +303,6 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
     snapXml->setAttribute("enabled", snapshots[s].enabled);
     snapXml->setAttribute("delayTimeMs", (double)snapshots[s].delayTimeMs);
     snapXml->setAttribute("syncDivision", snapshots[s].syncDivision);
-    snapXml->setAttribute("killOnStop", snapshots[s].killOnStop);
     for (int i = 0; i < 15; ++i) {
       auto *stepXml = snapXml->createNewChildElement("STEP");
       stepXml->setAttribute("id", i);
@@ -339,7 +337,6 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
           snapshots[sId].enabled = snapXml->getBoolAttribute("enabled", true);
           snapshots[sId].delayTimeMs = (float)snapXml->getDoubleAttribute("delayTimeMs", 500.0);
           snapshots[sId].syncDivision = snapXml->getIntAttribute("syncDivision", 0);
-          snapshots[sId].killOnStop = snapXml->getBoolAttribute("killOnStop", true);
           for (auto *stepXml : snapXml->getChildIterator()) {
             int i = stepXml->getIntAttribute("id");
             if (i >= 0 && i < 15) {
@@ -395,9 +392,6 @@ void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
   if (auto* p = apvts.getParameter ("stepCount"))
       p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 ((float)snap.stepCount));
       
-  if (auto* p = apvts.getParameter ("killOnStop"))
-      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.killOnStop ? 1.0f : 0.0f));
-      
   isUpdatingSnapshotParameters = false;
 }
 
@@ -430,8 +424,6 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
         snapshots[activeSnap].syncDivision = (int)std::round(newValue);
     else if (parameterID == "stepCount")
         snapshots[activeSnap].stepCount = (int)std::round(newValue);
-    else if (parameterID == "killOnStop")
-        snapshots[activeSnap].killOnStop = (newValue > 0.5f);
   }
 }
 juce::AudioProcessorEditor *AetherAudioProcessor::createEditor() {

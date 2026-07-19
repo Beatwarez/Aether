@@ -533,6 +533,12 @@ body {
 .snapshot-radio-group {
     display: flex;
     gap: 8px;
+    margin-bottom: 6px;
+}
+
+.snapshot-edit-group {
+    display: flex;
+    gap: 8px;
 }
 
 .snapshot-btn {
@@ -545,10 +551,34 @@ body {
     font-weight: 700;
     height: 36px;
     cursor: pointer;
+    border-radius: 2px;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.snapshot-edit-btn {
+    flex: 1;
+    height: 14px;
+    background: transparent;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    max-width: 14px;
+    margin: 0 auto;
+    transition: all 0.2s;
+}
+
+.snapshot-edit-btn:hover {
+    border-color: var(--crt-green);
+}
+
+.snapshot-edit-btn.active {
+    background: var(--crt-green);
+    border-color: var(--crt-green);
+    box-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
 }
 
 .snapshot-btn:hover {

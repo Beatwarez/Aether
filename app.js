@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = 'build 1.0.12';
+const BUILD_VERSION = 'build 1.0.13';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -17,6 +17,7 @@ let state = {
     stepCount: 15,
     killOnStop: true,
     activeSnapshot: 0,
+    editSnapshot: 0,
     steps: Array.from({ length: 15 }, (_, i) => ({
         pitch: 0,
         velocity: Math.round(127 - (i * (126 / 14))),
@@ -320,6 +321,9 @@ function updateUIFromState() {
     document.querySelectorAll(".snapshot-btn").forEach((btn, i) => {
         btn.classList.toggle("active", i === state.activeSnapshot);
     });
+    document.querySelectorAll(".snapshot-edit-btn").forEach((btn, i) => {
+        btn.classList.toggle("active", i === state.editSnapshot);
+    });
 }
 
 // Calculate and apply step value changes from drag/mouse movement
@@ -474,8 +478,19 @@ document.querySelectorAll(".snapshot-btn").forEach(btn => {
         if (!state.isEnabled) return;
         const index = parseInt(btn.getAttribute("data-index"));
         state.activeSnapshot = index;
+        state.editSnapshot = index;
         updateUIFromState();
         sendParamToCpp("activeSnapshot", index + 1);
+    };
+});
+
+document.querySelectorAll(".snapshot-edit-btn").forEach(btn => {
+    btn.onclick = () => {
+        if (!state.isEnabled) return;
+        const index = parseInt(btn.getAttribute("data-index"));
+        state.editSnapshot = index;
+        updateUIFromState();
+        sendParamToCpp("editSnapshot", index + 1);
     };
 });
 
@@ -551,9 +566,17 @@ const aetherUI = {
             return;
         }
         if (param === 'activeSnapshot') {
-            const index = Math.round(value) - 1; // 1-indexed to 0-indexed
+            const index = value - 1;
             if (state.activeSnapshot !== index) {
                 state.activeSnapshot = index;
+                updateUIFromState();
+            }
+            return;
+        }
+        if (param === 'editSnapshot') {
+            const index = value - 1;
+            if (state.editSnapshot !== index) {
+                state.editSnapshot = index;
                 updateUIFromState();
             }
             return;

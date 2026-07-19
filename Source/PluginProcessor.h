@@ -19,7 +19,6 @@ struct Snapshot {
   bool enabled = true;
   float delayTimeMs = 500.0f;
   int syncDivision = 0;
-  bool killOnStop = true;
 };
 
 struct NoteState {
@@ -73,6 +72,7 @@ public:
 
   juce::AudioProcessorValueTreeState apvts;
   std::array<Snapshot, 9> snapshots;
+  int editSnapshot = 0;
   Snapshot copiedSnapshot;
   bool hasCopiedSnapshot = false;
   bool isUpdatingSnapshotParameters = false;

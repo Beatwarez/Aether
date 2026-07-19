@@ -27,7 +27,8 @@ public:
         int activeSnap = (int)std::round(p.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
         activeSnap = juce::jlimit (0, 8, activeSnap);
 
-        auto& snap = p.snapshots[activeSnap];
+        int editSnap = p.editSnapshot;
+        auto& snap = p.snapshots[editSnap];
 
         juce::DynamicObject::Ptr stateObj = new juce::DynamicObject();
         
@@ -44,8 +45,9 @@ public:
         stateObj->setProperty ("syncDivision", syncDivisionStr);
         
         stateObj->setProperty ("stepCount", snap.stepCount);
-        stateObj->setProperty ("killOnStop", snap.killOnStop);
+        stateObj->setProperty ("killOnStop", p.apvts.getRawParameterValue("killOnStop")->load() > 0.5f);
         stateObj->setProperty ("activeSnapshot", activeSnap);
+        stateObj->setProperty ("editSnapshot", editSnap);
         
         juce::var stepsArray;
         for (int i = 0; i < 15; ++i)
@@ -136,34 +138,33 @@ public:
                             int idx = (int)jsonVar.getProperty("index", -1);
                             if (idx >= 0 && idx < 15)
                             {
-                                int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-                                activeSnap = juce::jlimit (0, 8, activeSnap);
+                                int editSnap = p.editSnapshot;
                                 
                                 juce::String prop = jsonVar.getProperty("property", "").toString();
                                 juce::var val = jsonVar.getProperty("value", 0);
                                 if (prop == "pitch")
                                 {
-                                    p.snapshots[activeSnap].steps[idx].pitchOffset = (int)val;
+                                    p.snapshots[editSnap].steps[idx].pitchOffset = (int)val;
                                     webViewInstance->localSteps[idx].pitchOffset = (int)val;
                                 }
                                 else if (prop == "velocity")
                                 {
-                                    p.snapshots[activeSnap].steps[idx].velocity = (int)val;
+                                    p.snapshots[editSnap].steps[idx].velocity = (int)val;
                                     webViewInstance->localSteps[idx].velocity = (int)val;
                                 }
                                 else if (prop == "modwheel")
                                 {
-                                    p.snapshots[activeSnap].steps[idx].modwheel = (int)val;
+                                    p.snapshots[editSnap].steps[idx].modwheel = (int)val;
                                     webViewInstance->localSteps[idx].modwheel = (int)val;
                                 }
                                 else if (prop == "probability")
                                 {
-                                    p.snapshots[activeSnap].steps[idx].probability = (int)val;
+                                    p.snapshots[editSnap].steps[idx].probability = (int)val;
                                     webViewInstance->localSteps[idx].probability = (int)val;
                                 }
                                 else if (prop == "muted")
                                 {
-                                    p.snapshots[activeSnap].steps[idx].muted = (bool)val;
+                                    p.snapshots[editSnap].steps[idx].muted = (bool)val;
                                     webViewInstance->localSteps[idx].muted = (bool)val;
                                 }
                             }
@@ -172,13 +173,12 @@ public:
                     else if (paramName == "randomizeLane" || paramName == "resetLane")
                     {
                         juce::String prop = args[1].toString();
-                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-                        activeSnap = juce::jlimit (0, 8, activeSnap);
+                        int editSnap = p.editSnapshot;
                         
                         juce::Random r;
                         for (int i = 0; i < 15; ++i)
                         {
-                            auto& s = p.snapshots[activeSnap].steps[i];
+                            auto& s = p.snapshots[editSnap].steps[i];
                             if (paramName == "randomizeLane")
                             {
                                 if (prop == "pitch") s.pitchOffset = r.nextInt(juce::Range<int>(-24, 25));
@@ -199,29 +199,24 @@ public:
                     }
                     else if (paramName == "copyActiveSnapshot")
                     {
-                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-                        activeSnap = juce::jlimit (0, 8, activeSnap);
-                        p.copiedSnapshot = p.snapshots[activeSnap];
+                        int editSnap = p.editSnapshot;
+                        p.copiedSnapshot = p.snapshots[editSnap];
                         p.hasCopiedSnapshot = true;
-                        logToFile ("copyActiveSnapshot: snapshot " + juce::String (activeSnap + 1) + " copied.");
+                        logToFile ("copyActiveSnapshot: snapshot " + juce::String (editSnap + 1) + " copied.");
                     }
                     else if (paramName == "pasteActiveSnapshot")
                     {
                         if (p.hasCopiedSnapshot)
                         {
-                            int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-                            activeSnap = juce::jlimit (0, 8, activeSnap);
-                            p.snapshots[activeSnap] = p.copiedSnapshot;
-                            
-                            // Trigger parameterChanged to load parameter values of the pasted snapshot
-                            p.parameterChanged ("activeSnapshot", (float)(activeSnap + 1));
+                            int editSnap = p.editSnapshot;
+                            p.snapshots[editSnap] = p.copiedSnapshot;
                             
                             // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
                             for (int i = 0; i < 6; ++i)
                                 webViewInstance->localParams[i] = -1.0f;
                             webViewInstance->localStepCount = -1;
                             webViewInstance->localActiveSnapshot = -1;
-                            logToFile ("pasteActiveSnapshot: copied state pasted into snapshot " + juce::String (activeSnap + 1) + ".");
+                            logToFile ("pasteActiveSnapshot: copied state pasted into snapshot " + juce::String (editSnap + 1) + ".");
                         }
                         else
                         {
@@ -231,6 +226,7 @@ public:
                     else if (paramName == "activeSnapshot")
                     {
                         float paramValue = (float)args[1];
+                        p.editSnapshot = (int)paramValue - 1; // Also set edit snapshot
                         
                         // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
                         for (int i = 0; i < 6; ++i)
@@ -251,22 +247,32 @@ public:
                             param->endChangeGesture();
                         }
                     }
+                    else if (paramName == "editSnapshot")
+                    {
+                        float paramValue = (float)args[1];
+                        p.editSnapshot = (int)paramValue - 1;
+                        
+                        // Reset caches to trigger a push
+                        for (int i = 0; i < 6; ++i)
+                            webViewInstance->localParams[i] = -1.0f;
+                        webViewInstance->localStepCount = -1;
+                        
+                        webViewInstance->evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('editSnapshot', " + juce::String ((int)paramValue) + ");");
+                    }
                     else
                     {
                         float paramValue = (float)args[1];
-                        int activeSnap = (int)std::round(p.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
-                        activeSnap = juce::jlimit (0, 8, activeSnap);
+                        int editSnap = p.editSnapshot;
                         
                         if (paramName == "stepCount")
-                            p.snapshots[activeSnap].stepCount = (int)paramValue;
+                            p.snapshots[editSnap].stepCount = (int)paramValue;
                         else if (paramName == "enabled")
-                            p.snapshots[activeSnap].enabled = (paramValue > 0.5f);
+                            p.snapshots[editSnap].enabled = (paramValue > 0.5f);
                         else if (paramName == "delayTimeMs")
-                            p.snapshots[activeSnap].delayTimeMs = paramValue;
+                            p.snapshots[editSnap].delayTimeMs = paramValue;
                         else if (paramName == "syncDivision")
-                            p.snapshots[activeSnap].syncDivision = (int)paramValue;
-                        else if (paramName == "killOnStop")
-                            p.snapshots[activeSnap].killOnStop = (paramValue > 0.5f);
+                            p.snapshots[editSnap].syncDivision = (int)paramValue;
+                        // killOnStop is global now, just APVTS update
 
                         if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
                         {
@@ -281,6 +287,7 @@ public:
                                 param->setValueNotifyingHost (paramValue);
                             param->endChangeGesture();
                         }
+                    }
                     }
                 }
                 completion (juce::var (true));

@@ -49,14 +49,12 @@ void AetherAudioProcessorEditor::resized()
 // ==========================================================================
 void AetherAudioProcessorEditor::timerCallback()
 {
-    // 1. Detect active snapshot changes FIRST, before the param push loop.
-    //    APVTS is the only correct source for activeSnapshot — it IS a single global param.
-    int activeSnap = (int)std::round(audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
-    activeSnap = juce::jlimit (0, 8, activeSnap);
+    // 1. Detect edit snapshot changes FIRST, before the param push loop.
+    int editSnap = audioProcessor.editSnapshot;
 
-    if (activeSnap != webView.localActiveSnapshot)
+    if (editSnap != webView.localActiveSnapshot)
     {
-        webView.localActiveSnapshot = activeSnap;
+        webView.localActiveSnapshot = editSnap;
 
         // Invalidate ALL scalar param caches so the push loop re-sends every
         // parameter value for the newly active snapshot on this same tick.
@@ -70,14 +68,13 @@ void AetherAudioProcessorEditor::timerCallback()
             webView.localSteps[i].velocity = -1;
             webView.localSteps[i].modwheel = -1;
             webView.localSteps[i].probability = -1;
-            webView.localSteps[i].muted = !audioProcessor.snapshots[activeSnap].steps[i].muted;
+            webView.localSteps[i].muted = !audioProcessor.snapshots[editSnap].steps[i].muted;
         }
     }
 
     // 2. Push per-snapshot scalar parameters.
-    //    Read directly from snapshots[activeSnap] — the authoritative per-snapshot store.
-    //    This is exactly what processBlock does for pStepCount; we do the same here.
-    auto& snap = audioProcessor.snapshots[activeSnap];
+    //    Read directly from snapshots[editSnap] — the authoritative per-snapshot store.
+    auto& snap = audioProcessor.snapshots[editSnap];
 
     // enabled
     {
@@ -119,14 +116,14 @@ void AetherAudioProcessorEditor::timerCallback()
             webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('stepCount', " + juce::String (snap.stepCount) + ");");
         }
     }
-    // killOnStop
+    // killOnStop (Global param — read from APVTS)
     {
-        float val = snap.killOnStop ? 1.0f : 0.0f;
+        float val = audioProcessor.apvts.getRawParameterValue ("killOnStop")->load();
         if (std::abs (val - webView.localParams[4]) > 0.001f)
         {
             webView.localParams[4] = val;
             AetherWebView::logToFile ("timer pushing: killOnStop = " + juce::String (val));
-            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnStop', " + juce::String (snap.killOnStop ? "true" : "false") + ");");
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnStop', " + juce::String (val > 0.5f ? "true" : "false") + ");");
         }
     }
     // activeSnapshot — single global param, correctly read from APVTS
@@ -167,19 +164,18 @@ void AetherAudioProcessorEditor::timerCallback()
 // ==========================================================================
 juce::String AetherAudioProcessorEditor::getStepsJson()
 {
-    int activeSnap = (int)audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
-    activeSnap = juce::jlimit (0, 8, activeSnap);
-
+    int editSnap = audioProcessor.editSnapshot;
+    
     juce::var stepsArray;
     
     for (int i = 0; i < 15; ++i)
     {
         juce::DynamicObject::Ptr stepObj = new juce::DynamicObject();
-        stepObj->setProperty ("pitch", audioProcessor.snapshots[activeSnap].steps[i].pitchOffset);
-        stepObj->setProperty ("velocity", audioProcessor.snapshots[activeSnap].steps[i].velocity);
-        stepObj->setProperty ("modwheel", audioProcessor.snapshots[activeSnap].steps[i].modwheel);
-        stepObj->setProperty ("probability", audioProcessor.snapshots[activeSnap].steps[i].probability);
-        stepObj->setProperty ("muted", audioProcessor.snapshots[activeSnap].steps[i].muted);
+        stepObj->setProperty ("pitch", audioProcessor.snapshots[editSnap].steps[i].pitchOffset);
+        stepObj->setProperty ("velocity", audioProcessor.snapshots[editSnap].steps[i].velocity);
+        stepObj->setProperty ("modwheel", audioProcessor.snapshots[editSnap].steps[i].modwheel);
+        stepObj->setProperty ("probability", audioProcessor.snapshots[editSnap].steps[i].probability);
+        stepObj->setProperty ("muted", audioProcessor.snapshots[editSnap].steps[i].muted);
         stepsArray.append (juce::var (stepObj.get()));
     }
     
