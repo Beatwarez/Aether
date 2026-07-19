@@ -250,9 +250,9 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
   std::unique_ptr<juce::XmlElement> rootXml(new juce::XmlElement("AetherState"));
   
-  // 1. Save APVTS parameters
   auto state = apvts.copyState();
-  if (std::unique_ptr<juce::XmlElement> paramsXml(state.createXml())) {
+  auto paramsXml = state.createXml();
+  if (paramsXml != nullptr) {
     rootXml->addChildElement(paramsXml.release());
   }
   
