@@ -192,6 +192,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     int noteKey = (msg.getChannel() << 7) | msg.getNoteNumber();
 
     if (msg.isNoteOn()) {
+      activityHits++;
       std::array<int, 15> cap;
       for (int i = 0; i < 15; ++i)
         cap[i] = snapshots[activeSnap].steps[i].pitchOffset;
