@@ -370,16 +370,6 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     // 2. Load APVTS parameters cleanly from the dedicated Parameters child
     if (auto *paramsXml = rootXml->getChildByName("Parameters")) {
       apvts.replaceState (juce::ValueTree::fromXml (*paramsXml));
-      
-      // Sync the snapshots memory array with loaded APVTS parameter values for the active snapshot
-      int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
-      activeSnap = juce::jlimit (0, 8, activeSnap);
-      snapshots[activeSnap].enabled = apvts.getRawParameterValue ("enabled")->load() > 0.5f;
-      snapshots[activeSnap].delayTimeMs = apvts.getRawParameterValue ("delayTimeMs")->load();
-      snapshots[activeSnap].syncDivision = (int)std::round(apvts.getRawParameterValue ("syncDivision")->load());
-      snapshots[activeSnap].stepCount = (int)std::round(apvts.getRawParameterValue ("stepCount")->load());
-      snapshots[activeSnap].killOnStop = apvts.getRawParameterValue ("killOnStop")->load() > 0.5f;
-      
       AetherWebView::logToFile ("setStateInformation: replaceState was successfully called.");
     } else {
       AetherWebView::logToFile ("setStateInformation: WARNING - Parameters child not found!");
