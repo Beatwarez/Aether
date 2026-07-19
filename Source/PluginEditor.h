@@ -196,6 +196,34 @@ public:
                             }
                         }
                     }
+                    else if (paramName == "copyActiveSnapshot")
+                    {
+                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                        activeSnap = juce::jlimit (0, 8, activeSnap);
+                        p.copiedSnapshot = p.snapshots[activeSnap];
+                        p.hasCopiedSnapshot = true;
+                        logToFile ("copyActiveSnapshot: snapshot " + juce::String (activeSnap + 1) + " copied.");
+                    }
+                    else if (paramName == "pasteActiveSnapshot")
+                    {
+                        if (p.hasCopiedSnapshot)
+                        {
+                            int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                            activeSnap = juce::jlimit (0, 8, activeSnap);
+                            p.snapshots[activeSnap] = p.copiedSnapshot;
+                            
+                            // Trigger parameterChanged to load parameter values of the pasted snapshot
+                            p.parameterChanged ("activeSnapshot", (float)(activeSnap + 1));
+                            
+                            // Invalidate local active snapshot cache to push steps to JS
+                            webViewInstance->localActiveSnapshot = -1;
+                            logToFile ("pasteActiveSnapshot: copied state pasted into snapshot " + juce::String (activeSnap + 1) + ".");
+                        }
+                        else
+                        {
+                            logToFile ("pasteActiveSnapshot: WARNING - no copied snapshot in buffer!");
+                        }
+                    }
                     else
                     {
                         float paramValue = (float)args[1];
@@ -203,7 +231,7 @@ public:
                         {
                             int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
                             activeSnap = juce::jlimit (0, 8, activeSnap);
-                            p.stepCounts[activeSnap] = (int)paramValue;
+                            p.snapshots[activeSnap].stepCount = (int)paramValue;
                         }
                         if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
                         {

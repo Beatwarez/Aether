@@ -104,7 +104,13 @@
 
             <!-- Snapshots Container -->
             <div class="snapshot-container">
-                <span class="label-tiny">SNAPSHOT PRESETS</span>
+                <div class="snapshot-header">
+                    <span class="lane-title">SNAPSHOT PRESETS</span>
+                    <div class="snapshot-actions">
+                        <button id="copy-snap-btn" class="action-btn" title="Copy Active Snapshot">C</button>
+                        <button id="paste-snap-btn" class="action-btn" title="Paste to Selected Snapshot">P</button>
+                    </div>
+                </div>
                 <div class="snapshot-radio-group">
                     <button class="snapshot-btn active" data-index="0">1</button>
                     <button class="snapshot-btn" data-index="1">2</button>

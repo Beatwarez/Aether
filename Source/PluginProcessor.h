@@ -13,6 +13,15 @@ struct DelayStep {
   bool muted = false;
 };
 
+struct Snapshot {
+  std::array<DelayStep, 15> steps;
+  int stepCount = 15;
+  bool enabled = true;
+  float delayTimeMs = 500.0f;
+  int syncDivision = 0;
+  bool killOnStop = true;
+};
+
 struct NoteState {
   int channel;
   int noteNumber;
@@ -31,7 +40,8 @@ struct QueuedEvent {
   int noteKey;
 };
 
-class AetherAudioProcessor : public juce::AudioProcessor {
+class AetherAudioProcessor : public juce::AudioProcessor,
+                             public juce::AudioProcessorValueTreeState::Listener {
 public:
   AetherAudioProcessor();
   ~AetherAudioProcessor() override;
@@ -53,9 +63,14 @@ public:
   void getStateInformation(juce::MemoryBlock &destData) override;
   void setStateInformation(const void *data, int sizeInBytes) override;
 
+  // APVTS Listener
+  void parameterChanged (const juce::String& parameterID, float newValue) override;
+
   juce::AudioProcessorValueTreeState apvts;
-  std::array<std::array<DelayStep, 15>, 9> steps;
-  std::array<int, 9> stepCounts;
+  std::array<Snapshot, 9> snapshots;
+  Snapshot copiedSnapshot;
+  bool hasCopiedSnapshot = false;
+  bool isUpdatingSnapshotParameters = false;
   std::atomic<bool> stopRequested{false};
 
 private:

@@ -490,10 +490,44 @@ body {
 .snapshot-container {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     margin-top: 16px;
     border-top: 1px solid rgba(0, 255, 65, 0.2);
     padding-top: 12px;
+}
+
+.snapshot-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+.snapshot-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.snapshot-actions .action-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    background: #121212;
+    color: var(--crt-green);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.snapshot-actions .action-btn:hover {
+    background: rgba(0, 255, 65, 0.2);
+    box-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
 }
 
 .snapshot-radio-group {

@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = 'build 1.0.04';
+const BUILD_VERSION = 'build 1.0.05';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -478,6 +478,16 @@ document.querySelectorAll(".snapshot-btn").forEach(btn => {
         sendParamToCpp("activeSnapshot", index + 1);
     };
 });
+
+document.getElementById("copy-snap-btn").onclick = () => {
+    if (!state.isEnabled) return;
+    sendParamToCpp("copyActiveSnapshot", 0);
+};
+
+document.getElementById("paste-snap-btn").onclick = () => {
+    if (!state.isEnabled) return;
+    sendParamToCpp("pasteActiveSnapshot", 0);
+};
 
 // Drag MS mouse registration
 document.getElementById("ms-value-box").onmousedown = (e) => {
