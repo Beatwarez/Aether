@@ -288,7 +288,6 @@ public:
                             param->endChangeGesture();
                         }
                     }
-                    }
                 }
                 completion (juce::var (true));
             });
