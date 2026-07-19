@@ -248,9 +248,16 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 }
 
 void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
+  std::unique_ptr<juce::XmlElement> rootXml(new juce::XmlElement("AetherState"));
+  
+  // 1. Save APVTS parameters
   auto state = apvts.copyState();
-  std::unique_ptr<juce::XmlElement> xml(state.createXml());
-  auto *sequenceXml = xml->createNewChildElement("SEQUENCE");
+  if (std::unique_ptr<juce::XmlElement> paramsXml(state.createXml())) {
+    rootXml->addChildElement(paramsXml.release());
+  }
+  
+  // 2. Save Sequencer Steps
+  auto *sequenceXml = rootXml->createNewChildElement("SEQUENCE");
   for (int i = 0; i < 15; ++i) {
     auto *stepXml = sequenceXml->createNewChildElement("STEP");
     stepXml->setAttribute("id", i);
@@ -262,25 +269,20 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
   }
   
   // Debug log state saving
-  AetherWebView::logToFile ("getStateInformation: saving XML = \n" + xml->toString());
+  AetherWebView::logToFile ("getStateInformation: saving XML = \n" + rootXml->toString());
   
-  juce::AudioProcessor::copyXmlToBinary(*xml, d);
+  juce::AudioProcessor::copyXmlToBinary(*rootXml, d);
 }
 
 void AetherAudioProcessor::setStateInformation(const void *d, int s) {
-  std::unique_ptr<juce::XmlElement> xml(
+  std::unique_ptr<juce::XmlElement> rootXml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
-  if (xml != nullptr) {
-    AetherWebView::logToFile ("setStateInformation: loaded XML = \n" + xml->toString());
-    AetherWebView::logToFile ("setStateInformation: expected APVTS state type = " + apvts.state.getType().toString());
-    AetherWebView::logToFile ("setStateInformation: xml tag name = " + xml->getTagName());
+  if (rootXml != nullptr) {
+    AetherWebView::logToFile ("setStateInformation: loaded XML = \n" + rootXml->toString());
+    AetherWebView::logToFile ("setStateInformation: xml tag name = " + rootXml->getTagName());
 
-    // Read step sequence BEFORE calling replaceState.
-    // We also remove it from the XML so APVTS never stores SEQUENCE as a child
-    // of its ValueTree — otherwise copyState() would embed a stale SEQUENCE
-    // on the next getStateInformation, creating duplicate SEQUENCE elements
-    // that corrupt step data across save/load cycles.
-    if (auto *sequenceXml = xml->getChildByName("SEQUENCE")) {
+    // 1. Read step sequence
+    if (auto *sequenceXml = rootXml->getChildByName("SEQUENCE")) {
       for (auto *stepXml : sequenceXml->getChildIterator()) {
         int i = stepXml->getIntAttribute("id");
         if (i >= 0 && i < 15) {
@@ -291,21 +293,17 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
           steps[i].muted = stepXml->getBoolAttribute("mute");
         }
       }
-      // Remove SEQUENCE so it doesn't pollute the APVTS ValueTree
-      xml->removeChildElement(sequenceXml, true);
     }
     
-    // Fallback tag check: if root tag matches expected, or is "Parameters", or expected type is empty
-    juce::String rootTag = xml->getTagName();
-    juce::String expectedTag = apvts.state.getType().toString();
-    if (rootTag == expectedTag || rootTag == "Parameters" || expectedTag.isEmpty()) {
-      apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    // 2. Load APVTS parameters cleanly from the dedicated Parameters child
+    if (auto *paramsXml = rootXml->getChildByName("Parameters")) {
+      apvts.replaceState (juce::ValueTree::fromXml (*paramsXml));
       AetherWebView::logToFile ("setStateInformation: replaceState was successfully called.");
     } else {
-      AetherWebView::logToFile ("setStateInformation: WARNING - tag name mismatch, replaceState NOT called.");
+      AetherWebView::logToFile ("setStateInformation: WARNING - Parameters child not found!");
     }
   } else {
-    AetherWebView::logToFile ("setStateInformation: xml was null (failed to parse binary data).");
+    AetherWebView::logToFile ("setStateInformation: rootXml was null (failed to parse binary data).");
   }
 }
 juce::AudioProcessorEditor *AetherAudioProcessor::createEditor() {
