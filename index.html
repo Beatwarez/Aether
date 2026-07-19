@@ -47,74 +47,41 @@
                         <span class="tagline subtagline">BY DARKINTEGER</span>
                     </div>
                 </div>
-            </div>
+                <!-- Delay Time / Division Matrix -->
+                <div class="delay-matrix-container border-left">
+                    <span class="label-tiny section-label">DELAY TIME MATRIX</span>
+                    <div class="matrix-grid">
+                        <!-- Row 1: Straight -->
+                        <button class="matrix-btn" data-div="1/1">1/1</button>
+                        <button class="matrix-btn" data-div="1/2">1/2</button>
+                        <button class="matrix-btn" data-div="1/4">1/4</button>
+                        <button class="matrix-btn" data-div="1/8">1/8</button>
+                        <button class="matrix-btn" data-div="1/16">1/16</button>
+                        <button class="matrix-btn" data-div="1/32">1/32</button>
 
-            <!-- Loop controls -->
-            <div class="loop-container border-left">
-                <div class="control-group text-center">
-                    <span class="label-tiny">LOOP</span>
-                    <button id="loop-btn" class="toggle-btn square-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="17 1 21 5 17 9"></polyline>
-                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                            <polyline points="7 23 3 19 7 15"></polyline>
-                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                        </svg>
-                    </button>
-                </div>
-                <div class="control-group">
-                    <span class="label-tiny text-center">MODE</span>
-                    <div class="segmented-control">
-                        <button class="segment-btn active" data-mode="forward">FORWARD</button>
-                        <button class="segment-btn" data-mode="pendulum">PENDULUM</button>
-                        <button class="segment-btn" data-mode="random">RANDOM</button>
+                        <!-- Row 2: Dotted -->
+                        <button class="matrix-btn" data-div="1/1d">1/1D</button>
+                        <button class="matrix-btn" data-div="1/2d">1/2D</button>
+                        <button class="matrix-btn" data-div="1/4d">1/4D</button>
+                        <button class="matrix-btn" data-div="1/8d">1/8D</button>
+                        <button class="matrix-btn" data-div="1/16d">1/16D</button>
+                        <button class="matrix-btn" data-div="1/32d">1/32D</button>
+
+                        <!-- Row 3: Triplet -->
+                        <button class="matrix-btn" data-div="1/1t">1/1T</button>
+                        <button class="matrix-btn" data-div="1/2t">1/2T</button>
+                        <button class="matrix-btn" data-div="1/4t">1/4T</button>
+                        <button class="matrix-btn" data-div="1/8t">1/8T</button>
+                        <button class="matrix-btn" data-div="1/16t">1/16T</button>
+                        <button class="matrix-btn" data-div="1/32t">1/32T</button>
                     </div>
-                </div>
-                <div class="control-group text-center">
-                    <span class="label-tiny">NOTE RESTART</span>
-                    <button id="restart-btn" class="toggle-btn square-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                            <path d="M3 3v5h5"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Delay Time / Division Matrix -->
-            <div class="delay-matrix-container">
-                <span class="label-tiny section-label">DELAY TIME MATRIX</span>
-                <div class="matrix-grid">
-                    <!-- Row 1: Straight -->
-                    <button class="matrix-btn" data-div="1/1">1/1</button>
-                    <button class="matrix-btn" data-div="1/2">1/2</button>
-                    <button class="matrix-btn" data-div="1/4">1/4</button>
-                    <button class="matrix-btn" data-div="1/8">1/8</button>
-                    <button class="matrix-btn" data-div="1/16">1/16</button>
-                    <button class="matrix-btn" data-div="1/32">1/32</button>
-
-                    <!-- Row 2: Dotted -->
-                    <button class="matrix-btn" data-div="1/1d">1/1D</button>
-                    <button class="matrix-btn" data-div="1/2d">1/2D</button>
-                    <button class="matrix-btn" data-div="1/4d">1/4D</button>
-                    <button class="matrix-btn" data-div="1/8d">1/8D</button>
-                    <button class="matrix-btn" data-div="1/16d">1/16D</button>
-                    <button class="matrix-btn" data-div="1/32d">1/32D</button>
-
-                    <!-- Row 3: Triplet -->
-                    <button class="matrix-btn" data-div="1/1t">1/1T</button>
-                    <button class="matrix-btn" data-div="1/2t">1/2T</button>
-                    <button class="matrix-btn" data-div="1/4t">1/4T</button>
-                    <button class="matrix-btn" data-div="1/8t">1/8T</button>
-                    <button class="matrix-btn" data-div="1/16t">1/16T</button>
-                    <button class="matrix-btn" data-div="1/32t">1/32T</button>
-                </div>
-                <!-- Delay Time Footer Row (Manual, Value, Kill) -->
-                <div class="delay-footer">
-                    <button id="kill-btn" class="delay-footer-btn flex-2">KILL ON STOP</button>
-                    <button id="manual-btn" class="delay-footer-btn flex-3">MANUAL (MS)</button>
-                    <div id="ms-value-box" class="ms-drag-box flex-1">
-                        <span id="ms-value-text">500</span>
+                    <!-- Delay Time Footer Row (Manual, Value, Kill) -->
+                    <div class="delay-footer">
+                        <button id="kill-btn" class="delay-footer-btn flex-2">KILL ON STOP</button>
+                        <button id="manual-btn" class="delay-footer-btn flex-3">MANUAL (MS)</button>
+                        <div id="ms-value-box" class="ms-drag-box flex-1">
+                            <span id="ms-value-text">500</span>
+                        </div>
                     </div>
                 </div>
             </div>

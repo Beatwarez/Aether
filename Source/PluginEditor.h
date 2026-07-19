@@ -10,7 +10,7 @@ class AetherWebView : public juce::WebBrowserComponent
 {
 public:
     // Caches to avoid redundant C++ -> JS messages
-    float localParams[8] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+    float localParams[5] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
     DelayStep localSteps[15];
     int localStepCount = -1;
 
@@ -40,13 +40,6 @@ public:
         
         stateObj->setProperty ("stepCount", (int)p.apvts.getRawParameterValue ("stepCount")->load());
         stateObj->setProperty ("killOnStop", (bool)(p.apvts.getRawParameterValue ("killOnStop")->load() > 0.5f));
-        stateObj->setProperty ("isLooping", (bool)(p.apvts.getRawParameterValue ("loopEnabled")->load() > 0.5f));
-        
-        int loopModeIdx = (int)p.apvts.getRawParameterValue ("loopMode")->load();
-        juce::String loopModeStr = (loopModeIdx == 0) ? "forward" : (loopModeIdx == 1 ? "pendulum" : "random");
-        stateObj->setProperty ("loopMode", loopModeStr);
-        
-        stateObj->setProperty ("loopNoteRestart", (bool)(p.apvts.getRawParameterValue ("loopRestart")->load() > 0.5f));
         
         juce::var stepsArray;
         for (int i = 0; i < 15; ++i)
@@ -114,7 +107,7 @@ public:
                         // on its next tick (from the message thread, no reentrancy issues).
                         // NOTE: Do NOT call evaluateJavascript here — WebView2 silently drops
                         // JS calls made from within an active JS->C++ native function callback.
-                        for (int i = 0; i < 8; ++i)
+                        for (int i = 0; i < 5; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         for (int i = 0; i < 15; ++i) {
@@ -232,7 +225,7 @@ public:
     // next tick and push the complete loaded state to JS safely from the message thread.
     void pageFinishedLoading (const juce::String& /*url*/) override
     {
-        for (int i = 0; i < 8; ++i)
+        for (int i = 0; i < 5; ++i)
             localParams[i] = -1.0f;
         localStepCount = -1;
         for (int i = 0; i < 15; ++i)

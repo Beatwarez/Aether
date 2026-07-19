@@ -13,8 +13,6 @@ struct DelayStep {
   bool muted = false;
 };
 
-enum class LoopMode { Forward, Pendulum, Random };
-
 struct NoteState {
   int channel;
   int noteNumber;

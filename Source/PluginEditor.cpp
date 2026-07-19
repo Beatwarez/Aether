@@ -50,9 +50,9 @@ void AetherAudioProcessorEditor::resized()
 void AetherAudioProcessorEditor::timerCallback()
 {
     // 1. Sync DAW-automated/saved parameters from C++ APVTS back to JS UI
-    juce::String paramIDs[8] = { "enabled", "delayTimeMs", "syncDivision", "stepCount", "killOnStop", "loopEnabled", "loopMode", "loopRestart" };
+    juce::String paramIDs[5] = { "enabled", "delayTimeMs", "syncDivision", "stepCount", "killOnStop" };
     
-    for (int p = 0; p < 8; ++p)
+    for (int p = 0; p < 5; ++p)
     {
         if (auto* rawVal = audioProcessor.apvts.getRawParameterValue (paramIDs[p]))
         {
@@ -62,11 +62,11 @@ void AetherAudioProcessorEditor::timerCallback()
                 webView.localParams[p] = val;
                 AetherWebView::logToFile ("timer pushing: " + paramIDs[p] + " = " + juce::String (val));
                 
-                if (paramIDs[p] == "loopMode" || paramIDs[p] == "syncDivision")
+                if (paramIDs[p] == "syncDivision")
                 {
                     webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + juce::String ((int)val) + ");");
                 }
-                else if (paramIDs[p] == "enabled" || paramIDs[p] == "killOnStop" || paramIDs[p] == "loopEnabled" || paramIDs[p] == "loopRestart")
+                else if (paramIDs[p] == "enabled" || paramIDs[p] == "killOnStop")
                 {
                     bool boolVal = (val > 0.5f);
                     webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('" + paramIDs[p] + "', " + (boolVal ? "true" : "false") + ");");

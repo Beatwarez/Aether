@@ -30,13 +30,6 @@ AetherAudioProcessor::createParameterLayout() {
                                                         "Kill On Stop", true));
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "syncDivision", "Sync Division", 0, 18, 0));
-  layout.add(std::make_unique<juce::AudioParameterBool>("loopEnabled",
-                                                        "Loop Enabled", false));
-  juce::StringArray modes = {"Forward", "Pendulum", "Random"};
-  layout.add(std::make_unique<juce::AudioParameterChoice>(
-      "loopMode", "Loop Mode", modes, 0));
-  layout.add(std::make_unique<juce::AudioParameterBool>(
-      "loopRestart", "Loop Note Restart", false));
   return layout;
 }
 
@@ -149,65 +142,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   smoothedDelaySamples.setTargetValue(
       (float)(targetMs * 0.001 * lastSampleRate));
 
-  bool pLoopEnabled = *apvts.getRawParameterValue("loopEnabled");
-  bool pLoopRestart = *apvts.getRawParameterValue("loopRestart");
-  int pLoopMode = (int)*apvts.getRawParameterValue("loopMode");
-
-  // Helper: advance step index according to current mode
-  auto advanceStep = [&](NoteState &ns, int fromStep) -> int {
-    if (pLoopMode == 0) { // Forward
-      return (fromStep + 1) % pStepCount;
-    } else if (pLoopMode == 1) { // Pendulum
-      if (ns.directionForward) {
-        if (fromStep >= pStepCount - 1) {
-          ns.directionForward = false;
-          return std::max(0, pStepCount - 2);
-        }
-        return fromStep + 1;
-      } else {
-        if (fromStep <= 0) {
-          ns.directionForward = true;
-          return std::min(pStepCount - 1, 1);
-        }
-        return fromStep - 1;
-      }
-    } else { // Random
-      return random.nextInt(pStepCount);
-    }
-  };
-
-  // Helper: find next non-muted step, returns {stepIndex, tapMultiple}
-  auto findNextStep = [&](NoteState &ns, int fromStep) -> std::pair<int, int> {
-    int nextI = advanceStep(ns, fromStep);
-    int taps = 1;
-    for (int guard = 0; guard < pStepCount && steps[nextI].muted; ++guard) {
-      nextI = advanceStep(ns, nextI);
-      ++taps;
-    }
-    return {nextI, taps};
-  };
-
   std::vector<QueuedEvent> additions;
-
-  // Schedule a loop chain event for nextI, taps delay-periods from now
-  auto scheduleLoopEvents = [&](NoteState &ns, int nextI, int taps,
-                                long long origin, int noteKey) {
-    if (steps[nextI].muted)
-      return; // all steps muted
-    int targetNote = juce::jlimit(0, 127, ns.noteNumber + ns.pitchCaps[nextI]);
-    // Pre-kill target pitch
-    additions.push_back({juce::MidiMessage::noteOff(ns.channel, targetNote),
-                         origin, taps, nextI, noteKey});
-    if (random.nextInt(100) < steps[nextI].probability) {
-      auto on = juce::MidiMessage::noteOn(ns.channel, targetNote,
-                                          steps[nextI].velocity / 127.0f);
-      additions.push_back({on, origin + 1, taps, nextI, noteKey});
-      additions.push_back({juce::MidiMessage::controllerEvent(
-                               ns.channel, 1, steps[nextI].modwheel),
-                           origin, taps, nextI, noteKey});
-    }
-    ns.currentStepIndex = nextI;
-  };
 
   for (const auto metadata : midiMessages) {
     auto msg = metadata.getMessage();
@@ -215,12 +150,6 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     int noteKey = (msg.getChannel() << 7) | msg.getNoteNumber();
 
     if (msg.isNoteOn()) {
-      if (pLoopRestart && pLoopEnabled) {
-        // Clear ALL queued loop events to restart from scratch
-        midiQueue.clear();
-        noteTracker.clear();
-      }
-
       std::array<int, 15> cap;
       for (int i = 0; i < 15; ++i)
         cap[i] = steps[i].pitchOffset;
@@ -237,54 +166,37 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
       long long origin = totalSamplesProcessed + localPos;
 
-      if (pLoopEnabled) {
-        // Find first non-muted step, skip with accumulated delay
-        auto &ns2 = noteTracker[noteKey];
-        int startI = 0;
-        int taps = 1;
-        for (int guard = 0; guard < pStepCount && steps[startI].muted;
-             ++guard) {
-          startI = advanceStep(ns2, startI);
-          ++taps;
-        }
-        scheduleLoopEvents(ns2, startI, taps, origin, noteKey);
-      } else {
-        // Classic: schedule all steps simultaneously
-        for (int i = 0; i < pStepCount; ++i) {
-          if (steps[i].muted || random.nextInt(100) >= steps[i].probability)
-            continue;
-          int targetNote =
-              juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
-          additions.push_back(
-              {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
-               i + 1, i, noteKey});
-          auto dOn = msg;
-          dOn.setNoteNumber(targetNote);
-          dOn.setVelocity(steps[i].velocity / 127.0f);
-          additions.push_back({dOn, origin + 1, i + 1, i, noteKey});
-          additions.push_back({juce::MidiMessage::controllerEvent(
-                                   msg.getChannel(), 1, steps[i].modwheel),
-                               origin, i + 1, i, noteKey});
-        }
+      // Classic: schedule all steps simultaneously
+      for (int i = 0; i < pStepCount; ++i) {
+        if (steps[i].muted || random.nextInt(100) >= steps[i].probability)
+          continue;
+        int targetNote =
+            juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
+        additions.push_back(
+            {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
+             i + 1, i, noteKey});
+        auto dOn = msg;
+        dOn.setNoteNumber(targetNote);
+        dOn.setVelocity(steps[i].velocity / 127.0f);
+        additions.push_back({dOn, origin + 1, i + 1, i, noteKey});
+        additions.push_back({juce::MidiMessage::controllerEvent(
+                                 msg.getChannel(), 1, steps[i].modwheel),
+                             origin, i + 1, i, noteKey});
       }
     } else if (msg.isNoteOff()) {
       if (noteTracker.count(noteKey)) {
-        if (!pLoopEnabled) {
-          // Classic mode: schedule note-offs for all taps, then clean up
-          auto &ns = noteTracker[noteKey];
-          long long origin = totalSamplesProcessed + localPos;
-          for (int i = 0; i < pStepCount; ++i) {
-            if (steps[i].muted)
-              continue;
-            auto dOff = msg;
-            dOff.setNoteNumber(juce::jlimit<int>(
-                0, 127, msg.getNoteNumber() + ns.pitchCaps[i]));
-            additions.push_back({dOff, origin, i + 1, i, noteKey});
-          }
-          noteTracker.erase(noteKey);
+        // Classic mode: schedule note-offs for all taps, then clean up
+        auto &ns = noteTracker[noteKey];
+        long long origin = totalSamplesProcessed + localPos;
+        for (int i = 0; i < pStepCount; ++i) {
+          if (steps[i].muted)
+            continue;
+          auto dOff = msg;
+          dOff.setNoteNumber(juce::jlimit<int>(
+              0, 127, msg.getNoteNumber() + ns.pitchCaps[i]));
+          additions.push_back({dOff, origin, i + 1, i, noteKey});
         }
-        // In loop mode: ignore note-off — loop keeps running until STOP /
-        // transport stop / note restart
+        noteTracker.erase(noteKey);
       }
     }
   }
@@ -312,22 +224,6 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         int ch = it->message.getChannel();
         int note = it->message.getNoteNumber();
         activeNotes.erase(std::remove(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)), activeNotes.end());
-      }
-
-      // Loop continuation: when a looped note-on fires, schedule the next
-      if (it->message.isNoteOn() && pLoopEnabled &&
-          noteTracker.count(it->noteKey)) {
-        auto &ns = noteTracker[it->noteKey];
-
-        // Kill the note that just fired (schedule kill 1 delay period from now)
-        int thisNote =
-            juce::jlimit(0, 127, ns.noteNumber + ns.pitchCaps[it->stepIndex]);
-        additions.push_back({juce::MidiMessage::noteOff(ns.channel, thisNote),
-                             eventTargetTime, 1, it->stepIndex, it->noteKey});
-
-        // Find and schedule the next step
-        auto [nextI, taps] = findNextStep(ns, ns.currentStepIndex);
-        scheduleLoopEvents(ns, nextI, taps, eventTargetTime, it->noteKey);
       }
 
       it = midiQueue.erase(it);
@@ -364,6 +260,10 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
     stepXml->setAttribute("prob", steps[i].probability);
     stepXml->setAttribute("mute", steps[i].muted);
   }
+  
+  // Debug log state saving
+  AetherWebView::logToFile ("getStateInformation: saving XML = \n" + xml->toString());
+  
   juce::AudioProcessor::copyXmlToBinary(*xml, d);
 }
 
@@ -371,6 +271,10 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   std::unique_ptr<juce::XmlElement> xml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
   if (xml != nullptr) {
+    AetherWebView::logToFile ("setStateInformation: loaded XML = \n" + xml->toString());
+    AetherWebView::logToFile ("setStateInformation: expected APVTS state type = " + apvts.state.getType().toString());
+    AetherWebView::logToFile ("setStateInformation: xml tag name = " + xml->getTagName());
+
     // Read step sequence BEFORE calling replaceState.
     // We also remove it from the XML so APVTS never stores SEQUENCE as a child
     // of its ValueTree — otherwise copyState() would embed a stale SEQUENCE
@@ -390,10 +294,18 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
       // Remove SEQUENCE so it doesn't pollute the APVTS ValueTree
       xml->removeChildElement(sequenceXml, true);
     }
-    // Now load APVTS params cleanly (no SEQUENCE child)
-    if (xml->hasTagName (apvts.state.getType())) {
+    
+    // Fallback tag check: if root tag matches expected, or is "Parameters", or expected type is empty
+    juce::String rootTag = xml->getTagName();
+    juce::String expectedTag = apvts.state.getType().toString();
+    if (rootTag == expectedTag || rootTag == "Parameters" || expectedTag.isEmpty()) {
       apvts.replaceState (juce::ValueTree::fromXml (*xml));
+      AetherWebView::logToFile ("setStateInformation: replaceState was successfully called.");
+    } else {
+      AetherWebView::logToFile ("setStateInformation: WARNING - tag name mismatch, replaceState NOT called.");
     }
+  } else {
+    AetherWebView::logToFile ("setStateInformation: xml was null (failed to parse binary data).");
   }
 }
 juce::AudioProcessorEditor *AetherAudioProcessor::createEditor() {

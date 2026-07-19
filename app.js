@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = 'build 1.0.01';
+const BUILD_VERSION = 'build 1.0.02';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -16,9 +16,6 @@ let state = {
     syncDivision: '1/4',
     stepCount: 15,
     killOnStop: true,
-    isLooping: false,
-    loopMode: 'forward',
-    loopNoteRestart: false,
     steps: Array.from({ length: 15 }, (_, i) => ({
         pitch: 0,
         velocity: Math.round(127 - (i * (126 / 14))),
@@ -285,13 +282,7 @@ function updateUIFromState() {
         appContainer.classList.add("disabled");
     }
 
-    // 2. Loop Controls
-    document.getElementById("loop-btn").classList.toggle("active", state.isLooping);
-    document.getElementById("restart-btn").classList.toggle("active", state.loopNoteRestart);
-    
-    document.querySelectorAll(".segment-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.getAttribute("data-mode") === state.loopMode);
-    });
+
 
     // 3. Step Count Slider
     document.getElementById("step-count-label").textContent = `STEP COUNT: ${state.stepCount}`;
@@ -436,27 +427,7 @@ document.getElementById("power-btn").onclick = () => {
     sendParamToCpp("enabled", state.isEnabled ? 1.0 : 0.0);
 };
 
-document.getElementById("loop-btn").onclick = () => {
-    state.isLooping = !state.isLooping;
-    document.getElementById("loop-btn").classList.toggle("active", state.isLooping);
-    sendParamToCpp("loopEnabled", state.isLooping ? 1.0 : 0.0);
-};
 
-document.getElementById("restart-btn").onclick = () => {
-    state.loopNoteRestart = !state.loopNoteRestart;
-    document.getElementById("restart-btn").classList.toggle("active", state.loopNoteRestart);
-    sendParamToCpp("loopRestart", state.loopNoteRestart ? 1.0 : 0.0);
-};
-
-document.querySelectorAll(".segment-btn").forEach(btn => {
-    btn.onclick = () => {
-        const mode = btn.getAttribute("data-mode");
-        state.loopMode = mode;
-        document.querySelectorAll(".segment-btn").forEach(b => b.classList.toggle("active", b === btn));
-        const modeIdx = mode === 'forward' ? 0 : (mode === 'pendulum' ? 1 : 2);
-        sendParamToCpp("loopMode", modeIdx);
-    };
-});
 
 document.querySelectorAll(".matrix-btn").forEach(btn => {
     btn.onclick = () => {
@@ -553,22 +524,12 @@ const aetherUI = {
             }
             return;
         }
-        if (param === 'loopMode') {
-            const modeStr = value === 0 ? 'forward' : (value === 1 ? 'pendulum' : 'random');
-            if (state.loopMode !== modeStr) {
-                state.loopMode = modeStr;
-                updateUIFromState();
-            }
-            return;
-        }
         
         const keyMap = {
             'enabled': 'isEnabled',
             'delayTimeMs': 'delayTimeMs',
             'stepCount': 'stepCount',
-            'killOnStop': 'killOnStop',
-            'loopEnabled': 'isLooping',
-            'loopRestart': 'loopNoteRestart'
+            'killOnStop': 'killOnStop'
         };
         const mappedKey = keyMap[param];
         if (mappedKey) {

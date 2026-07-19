@@ -195,51 +195,13 @@ body {
     margin-top: 2px;
 }
 
-/* Loop section styling */
-.loop-container {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding-left: 30px;
-    margin-left: 10px;
-}
-
-.segmented-control {
-    display: flex;
-    border: 1px solid rgba(0, 255, 65, 0.4);
-}
-
-.segment-btn {
-    background: transparent;
-    border: none;
-    color: var(--crt-green);
-    padding: 6px 12px;
-    font-size: 9px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.segment-btn:not(:last-child) {
-    border-right: 1px solid rgba(0, 255, 65, 0.4);
-}
-
-.segment-btn:hover {
-    background: rgba(0, 255, 65, 0.1);
-}
-
-.segment-btn.active {
-    background: var(--crt-green);
-    color: black;
-}
-
 /* Delay Matrix styling */
 .delay-matrix-container {
     display: flex;
     flex-direction: column;
     gap: 4px;
     min-width: 380px;
-    margin-left: 20px;
+    padding-left: 30px;
 }
 
 .section-label {
