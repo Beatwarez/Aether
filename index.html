@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AETHER // Polyphonic MIDI Delay</title>
     <link rel="stylesheet" href="styles.css">
-    </head>
-<style>
-    #build-version-label {
-        position: absolute;
-        bottom: 6px;
-        right: 10px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 9px;
-        color: rgba(255,255,255,0.22);
-        letter-spacing: 0.04em;
-        pointer-events: none;
-        z-index: 9999;
-        user-select: none;
-    }
-</style>
+    <style>
+        #build-version-label {
+            position: absolute;
+            bottom: 6px;
+            right: 10px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            color: rgba(255,255,255,0.22);
+            letter-spacing: 0.04em;
+            pointer-events: none;
+            z-index: 9999;
+            user-select: none;
+        }
+    </style>
+</head>
 <body>
     <div class="crt-overlay"></div>
     <div id="app-container">
@@ -44,7 +44,7 @@
                         <span class="tagline subtagline">BY DARKINTEGER</span>
                     </div>
                 </div>
-                <!-- Delay Time / Division Matrix -->
+                <!-- Delay Time / Division Matrix (Original Header Location) -->
                 <div class="delay-matrix-container">
                     <span class="label-tiny section-label">DELAY TIME MATRIX</span>
                     <div class="matrix-grid">
@@ -72,11 +72,10 @@
                         <button class="matrix-btn" data-div="1/16t">1/16T</button>
                         <button class="matrix-btn" data-div="1/32t">1/32T</button>
                     </div>
-                    <!-- Delay Time Footer Row (Manual, Value, Kill) -->
+                    <!-- Delay Time Footer Row (Manual, Value) -->
                     <div class="delay-footer">
-                        <button id="kill-btn" class="delay-footer-btn flex-2">KILL ON STOP</button>
-                        <button id="manual-btn" class="delay-footer-btn flex-3">MANUAL (MS)</button>
-                        <div id="ms-value-box" class="ms-drag-box flex-1">
+                        <button id="manual-btn" class="delay-footer-btn flex-grow-1">MANUAL (MS)</button>
+                        <div id="ms-value-box" class="ms-drag-box flex-grow-1">
                             <span id="ms-value-text">500</span>
                         </div>
                     </div>
@@ -107,7 +106,6 @@
   <path d="M1484.1 541.9 c-4.7 -1 -8.2 -3.8 -10.8 -9 l-2.2 -4.4 -0.1 -108.1 c0 -117.1 -0.2 -113.4 5.3 -119.2 5.4 -5.9 11.5 -6.6 19.8 -2.5 8.5 4.4 9.9 7.3 9.9 20.6 0 10.5 0.1 10.9 1.9 9.6 1 -0.8 5.1 -3.9 9.2 -7 36.9 -27.8 79.5 -33.4 121 -15.8 5 2.2 9.4 7.9 10.5 13.5 0.9 4.8 -2.1 12.7 -6.1 16.3 -4.6 4 -9.4 4.8 -15.9 2.8 -26 -8.2 -47.5 -8.7 -67 -1.6 -19.2 7 -34.8 22.1 -45.8 44.4 -7.3 14.6 -7.1 12.7 -7.7 85.2 -0.6 64.2 -0.6 65.2 -2.7 68 -4 5.3 -12.7 8.6 -19.3 7.2z"/>
   <path d="M1778.5 542.3 c-22.6 -1.3 -43.8 -9.1 -61.5 -22.4 -9.2 -6.9 -22.7 -20.9 -30.4 -31.3 -20.4 -27.5 -26.9 -73 -15.2 -107.2 5.6 -16.5 15.1 -31.7 27.9 -44.6 15.8 -15.9 31.8 -26.3 49.5 -32.1 14 -4.7 25.9 -6.7 39.6 -6.7 39.1 0 71.1 16.3 96.7 49.3 9.6 12.3 13.2 18.7 17.2 30.2 7.3 21.1 7.2 19.7 7.2 91.2 l0 64.2 -3 3.1 c-3.9 4.1 -8.8 6.2 -14.8 6.1 -6.1 0 -10.9 -2.9 -14.2 -8.5 -2.4 -4.2 -2.5 -4.7 -1.9 -16 0.4 -6.4 0.4 -11.6 0.1 -11.6 -0.3 0 -3.2 2.3 -6.4 5.1 -14.6 12.8 -34.5 23.6 -51.4 27.9 -7.4 1.9 -27.2 4.2 -32.4 3.8 -1.1 -0.1 -4.2 -0.3 -7 -0.5z m30.8 -36.9 c15 -3.4 29.1 -11.7 41.2 -24.5 12.7 -13.4 19.6 -26.4 23.2 -43.7 1.9 -9.5 1.3 -31.5 -1.2 -40.7 -4.3 -15.8 -15.5 -32.5 -28.8 -43 -20.2 -15.9 -36.6 -21.3 -61.1 -20.2 -14.5 0.6 -21.2 2.3 -33.1 8.1 -15.6 7.7 -27.7 19.6 -38.5 37.6 -13.4 22.7 -14 56.1 -1.5 81.1 10.2 20.2 33.1 38.6 55.4 44.5 11 2.9 33.1 3.3 44.4 0.8z"/>
  </g>
-
 </svg></div>
         </header>
 
@@ -133,6 +131,7 @@
                     <div class="snapshot-actions">
                         <button id="copy-snap-btn" class="action-btn" title="Copy Active Snapshot">C</button>
                         <button id="paste-snap-btn" class="action-btn" title="Paste to Selected Snapshot">P</button>
+                        <button id="kill-btn" class="action-btn wide-action-btn" title="Kill ringing delays on stop">KILL ON STOP</button>
                         <button id="kill-on-switch-btn" class="action-btn wide-action-btn" title="Kill ringing delays on snapshot change">KILL ON SWITCH</button>
                     </div>
                 </div>
@@ -172,6 +171,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
