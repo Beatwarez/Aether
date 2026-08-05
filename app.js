@@ -45,13 +45,11 @@ function scaleUI() {
     const vw = window.innerWidth || document.documentElement.clientWidth || DESIGN_W;
     const vh = window.innerHeight || document.documentElement.clientHeight || DESIGN_H;
     const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
-    const offsetX = (vw - DESIGN_W * scale) / 2;
-    const offsetY = (vh - DESIGN_H * scale) / 2;
+    const offsetX = Math.max(0, (vw - DESIGN_W * scale) / 2);
+    const offsetY = Math.max(0, (vh - DESIGN_H * scale) / 2);
     const container = document.getElementById('app-container');
     if (container) {
-        container.style.transform = 'scale(' + scale + ')';
-        container.style.left = offsetX + 'px';
-        container.style.top  = offsetY + 'px';
+        container.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
     }
 }
 
