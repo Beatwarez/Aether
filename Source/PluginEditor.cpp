@@ -18,9 +18,9 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor (AetherAudioProcessor& p)
 
     // Configure Editor sizing (fixed aspect ratio and resizable)
     setResizable (true, true);
-    getConstrainer()->setFixedAspectRatio (1040.0 / 1200.0);
-    setResizeLimits (520, 600, 2080, 2400);
-    setSize (1040, 1200);
+    getConstrainer()->setFixedAspectRatio (1040.0 / 1280.0);
+    setResizeLimits (520, 640, 2080, 2560);
+    setSize (1040, 1280);
 }
 
 // ==========================================================================
