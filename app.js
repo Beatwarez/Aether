@@ -42,20 +42,17 @@ const DESIGN_W = 1040;
 const DESIGN_H = 1280;
 
 function scaleUI() {
-    const vw = document.documentElement.clientWidth || window.innerWidth;
-    const vh = document.documentElement.clientHeight || window.innerHeight;
+    const vw = window.innerWidth || document.documentElement.clientWidth;
+    const vh = window.innerHeight || document.documentElement.clientHeight;
     
-    // Guard against temporary zero or corrupt dimensions during host editor resize starts
     if (!vw || !vh || vw < 10 || vh < 10) {
         return;
     }
     
     const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
-    const offsetX = Math.max(0, (vw - DESIGN_W * scale) / 2);
-    const offsetY = Math.max(0, (vh - DESIGN_H * scale) / 2);
     const container = document.getElementById('app-container');
     if (container) {
-        container.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+        container.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
     }
 }
 
