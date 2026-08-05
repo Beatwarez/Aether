@@ -44,18 +44,18 @@ AetherAudioProcessor::createParameterLayout() {
   juce::AudioProcessorValueTreeState::ParameterLayout layout;
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       "delayTimeMs", "Delay Time (ms)", 1.0f, 2000.0f, 500.0f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "enabled", "Enabled", 0.0f, 1.0f, 1.0f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "stepCount", "Step Count", 1.0f, 15.0f, 15.0f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "killOnStop", "Kill On Stop", 0.0f, 1.0f, 1.0f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "killOnSwitch", "Kill On Switch", 0.0f, 1.0f, 0.0f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "syncDivision", "Sync Division", 0.0f, 18.0f, 0.0f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "activeSnapshot", "Active Snapshot", 1.0f, 9.0f, 1.0f));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      "enabled", "Enabled", true));
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      "stepCount", "Step Count", 1, 15, 15));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      "killOnStop", "Kill On Stop", true));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      "killOnSwitch", "Kill On Switch", false));
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      "syncDivision", "Sync Division", 0, 18, 0));
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      "activeSnapshot", "Active Snapshot", 1, 9, 1));
   return layout;
 }
 
@@ -380,6 +380,11 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     } else {
       AetherWebView::logToFile ("setStateInformation: WARNING - Parameters child not found!");
     }
+
+    // Sync the loaded active snapshot parameters
+    int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
+    activeSnap = juce::jlimit (0, 8, activeSnap);
+    loadSnapshotParameters (activeSnap);
   } else {
     AetherWebView::logToFile ("setStateInformation: rootXml was null (failed to parse binary data).");
   }
