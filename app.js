@@ -137,12 +137,6 @@ function buildLanes() {
         grid.className = "steps-grid";
         grid.style.height = config.prop === 'muted' ? "24px" : "128px";
 
-        if (config.isBipolar) {
-            const line = document.createElement("div");
-            line.className = "bipolar-center-line";
-            line.style.top = "calc(50% - 14px)"; // half of the 28px value label
-            grid.appendChild(line);
-        }
 
         // Draw 15 steps
         for (let i = 0; i < 15; i++) {
@@ -161,6 +155,10 @@ function buildLanes() {
                 const fill = document.createElement("div");
                 fill.className = "step-bar-bipolar";
                 barContainer.appendChild(fill);
+                // Center line inside each box only
+                const centerLine = document.createElement("div");
+                centerLine.className = "bipolar-center-line";
+                barContainer.appendChild(centerLine);
             } else {
                 const fill = document.createElement("div");
                 fill.className = "step-bar-fill";
@@ -177,6 +175,7 @@ function buildLanes() {
 
             // Drag registration on down
             col.onmousedown = (e) => {
+                if (e.button !== 0) return;
                 if (!state.isEnabled) return;
                 if (config.prop === 'muted') {
                     // Mute lane is click-only
@@ -517,6 +516,7 @@ document.getElementById("paste-snap-btn").onclick = () => {
 
 // Drag MS mouse registration
 document.getElementById("ms-value-box").onmousedown = (e) => {
+    if (e.button !== 0) return;
     if (state.syncDivision !== 'ms') return;
     isDraggingMs = true;
     msStartY = e.clientY;
@@ -526,6 +526,7 @@ document.getElementById("ms-value-box").onmousedown = (e) => {
 
 // Drag Step Count mouse registration
 document.getElementById("step-count-track").onmousedown = (e) => {
+    if (e.button !== 0) return;
     if (!state.isEnabled) return;
     isDraggingStepCount = true;
     updateStepCountFromMouse(e.clientX);
@@ -533,6 +534,17 @@ document.getElementById("step-count-track").onmousedown = (e) => {
 
 // Global mouse tracking
 window.addEventListener("mousemove", (e) => {
+    if (e.buttons !== 1) {
+        if (activeDraggingLane || isDraggingStepCount || isDraggingMs) {
+            activeDraggingLane = null;
+            isDraggingStepCount = false;
+            if (isDraggingMs) {
+                isDraggingMs = false;
+                document.body.style.cursor = 'default';
+            }
+        }
+        return;
+    }
     if (activeDraggingLane) {
         updateStepFromMouse(e, activeDraggingLane.element, activeDraggingLane.property, activeDraggingLane.min, activeDraggingLane.max, activeDraggingLane.isBipolar);
     } else if (isDraggingStepCount) {
@@ -542,13 +554,19 @@ window.addEventListener("mousemove", (e) => {
     }
 });
 
-window.addEventListener("mouseup", () => {
+window.addEventListener("mouseup", (e) => {
     activeDraggingLane = null;
     isDraggingStepCount = false;
     if (isDraggingMs) {
         isDraggingMs = false;
         document.body.style.cursor = 'default';
     }
+});
+
+// Suppress right-click context menu globally across UI
+window.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    return false;
 });
 
 window.addEventListener("resize", handleWindowResize);

@@ -100,7 +100,7 @@ body {
 /* Layout container */
 #app-container {
     width: 1040px;
-    height: 1200px;
+    height: 1280px;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -120,6 +120,76 @@ body {
     opacity: 0.4;
     filter: grayscale(0.5);
     pointer-events: none;
+}
+
+/* Canvas Layout Placement Rules */
+.power-control-group {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 100;
+}
+
+.top-branding {
+    position: absolute;
+    left: 102px;
+    top: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    z-index: 100;
+}
+
+.top-header-right {
+    position: absolute;
+    right: 30px;
+    top: 30px;
+    width: 255px;
+    height: 90px;
+    z-index: 100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.top-header-right .header-logo-right {
+    width: 255px;
+    height: auto;
+    max-height: 90px;
+    transform: none;
+}
+
+.sync-division-lane {
+    position: absolute;
+    left: 30px;
+    top: 140px;
+    width: 980px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 100;
+}
+
+.sync-radio-grid {
+    display: grid;
+    grid-template-columns: repeat(19, 1fr);
+    gap: 0;
+    width: 100%;
+}
+
+.canvas-workspace {
+    position: absolute;
+    left: 30px;
+    top: 220px;
+    width: 980px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 /* Utilities */
@@ -430,8 +500,9 @@ body {
 
 .bipolar-center-line {
     position: absolute;
-    left: 4px;
-    right: 4px;
+    left: 0;
+    right: 0;
+    top: 50%;
     height: 1px;
     background: rgba(0, 255, 65, 0.15);
     pointer-events: none;
