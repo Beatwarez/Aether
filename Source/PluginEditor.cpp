@@ -55,6 +55,7 @@ void AetherAudioProcessorEditor::timerCallback()
     if (editSnap != webView.localActiveSnapshot)
     {
         webView.localActiveSnapshot = editSnap;
+        webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('editSnapshot', " + juce::String (editSnap + 1) + ");");
 
         // Invalidate ALL scalar param caches so the push loop re-sends every
         // parameter value for the newly active snapshot on this same tick.

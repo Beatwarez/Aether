@@ -293,6 +293,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
 void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
   std::unique_ptr<juce::XmlElement> rootXml(new juce::XmlElement("AetherState"));
+  rootXml->setAttribute("editSnapshot", editSnapshot);
   
   auto state = apvts.copyState();
   auto paramsXml = state.createXml();
@@ -333,6 +334,8 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   if (rootXml != nullptr) {
     AetherWebView::logToFile ("setStateInformation: loaded XML = \n" + rootXml->toString());
     AetherWebView::logToFile ("setStateInformation: xml tag name = " + rootXml->getTagName());
+
+    editSnapshot = rootXml->getIntAttribute("editSnapshot", 0);
 
     // 1. Read step snapshots
     if (auto *snapshotsXml = rootXml->getChildByName("SNAPSHOTS")) {
@@ -380,6 +383,7 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   } else {
     AetherWebView::logToFile ("setStateInformation: rootXml was null (failed to parse binary data).");
   }
+  isInitializing = false;
 }
 
 void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
