@@ -37,9 +37,12 @@ public:
         stateObj->setProperty ("delayTimeMs", (double)snap.delayTimeMs);
         
         juce::StringArray SYNC_DIVISIONS = {
-          "1/1", "1/2", "1/4", "1/8", "1/16", "1/32",
-          "1/1d", "1/2d", "1/4d", "1/8d", "1/16d", "1/32d",
-          "1/1t", "1/2t", "1/4t", "1/8t", "1/16t", "1/32t"
+          "1/1d", "1/1", "1/1t",
+          "1/2d", "1/2", "1/2t",
+          "1/4d", "1/4", "1/4t",
+          "1/8d", "1/8", "1/8t",
+          "1/16d", "1/16", "1/16t",
+          "1/32d", "1/32", "1/32t"
         };
         juce::String syncDivisionStr = (snap.syncDivision == 0) ? "ms" : SYNC_DIVISIONS[snap.syncDivision - 1];
         stateObj->setProperty ("syncDivision", syncDivisionStr);
@@ -237,11 +240,13 @@ public:
                         
                         if (auto* rawVal = p.apvts.getRawParameterValue ("activeSnapshot"))
                             rawVal->store (paramValue);
-                            
+                             
                         if (auto* param = p.apvts.getParameter ("activeSnapshot"))
                         {
                             param->beginChangeGesture();
-                            if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
+                            if (auto* intParam = dynamic_cast<juce::AudioParameterInt*> (param))
+                                *intParam = (int)paramValue;
+                            else if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
                                 rangedParam->setValueNotifyingHost (rangedParam->getNormalisableRange().convertTo0to1 (paramValue));
                             else
                                 param->setValueNotifyingHost (paramValue);
@@ -282,7 +287,13 @@ public:
                         if (auto* param = p.apvts.getParameter (paramName))
                         {
                             param->beginChangeGesture();
-                            if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
+                            if (auto* intParam = dynamic_cast<juce::AudioParameterInt*> (param))
+                                *intParam = (int)paramValue;
+                            else if (auto* boolParam = dynamic_cast<juce::AudioParameterBool*> (param))
+                                *boolParam = (paramValue > 0.5f);
+                            else if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*> (param))
+                                *floatParam = paramValue;
+                            else if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
                                 rangedParam->setValueNotifyingHost (rangedParam->getNormalisableRange().convertTo0to1 (paramValue));
                             else
                                 param->setValueNotifyingHost (paramValue);

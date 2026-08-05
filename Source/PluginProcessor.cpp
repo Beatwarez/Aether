@@ -84,34 +84,14 @@ double AetherAudioProcessor::getSyncTimeInMs() {
       auto bpmOpt = pos->getBpm();
       double bpm = bpmOpt ? *bpmOpt : 120.0;
       double qnMs = (60.0 / bpm) * 1000.0;
-      int div = (syncIdx - 1) % 6;
-      int type = (syncIdx - 1) / 6;
-      double bt = qnMs;
-      switch (div) {
-      case 0:
-        bt = qnMs * 4.0;
-        break;
-      case 1:
-        bt = qnMs * 2.0;
-        break;
-      case 2:
-        bt = qnMs;
-        break;
-      case 3:
-        bt = qnMs * 0.5;
-        break;
-      case 4:
-        bt = qnMs * 0.25;
-        break;
-      case 5:
-        bt = qnMs * 0.125;
-        break;
-      }
-      if (type == 1)
-        bt *= 1.5;
-      else if (type == 2)
-        bt *= (2.0 / 3.0);
-      return bt;
+      
+      int step = (syncIdx - 1) / 3; // 0 to 5: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32
+      int type = (syncIdx - 1) % 3; // 0: dotted, 1: straight, 2: triplet
+      
+      double baseTime = qnMs * 4.0 * std::pow(0.5, step);
+      double multiplier = (type == 0 ? 1.5 : (type == 2 ? (2.0 / 3.0) : 1.0));
+      
+      return baseTime * multiplier;
     }
   }
   return (double)*apvts.getRawParameterValue("delayTimeMs");
@@ -395,17 +375,17 @@ void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
   isUpdatingSnapshotParameters = true;
   auto& snap = snapshots[snapIdx];
   
-  if (auto* p = apvts.getParameter ("enabled"))
-      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.enabled ? 1.0f : 0.0f));
+  if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter ("enabled")))
+      *p = snap.enabled;
       
-  if (auto* p = apvts.getParameter ("delayTimeMs"))
-      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 (snap.delayTimeMs));
+  if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter ("delayTimeMs")))
+      *p = snap.delayTimeMs;
       
-  if (auto* p = apvts.getParameter ("syncDivision"))
-      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 ((float)snap.syncDivision));
+  if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter ("syncDivision")))
+      *p = snap.syncDivision;
       
-  if (auto* p = apvts.getParameter ("stepCount"))
-      p->setValueNotifyingHost (p->getNormalisableRange().convertTo0to1 ((float)snap.stepCount));
+  if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter ("stepCount")))
+      *p = snap.stepCount;
       
   isUpdatingSnapshotParameters = false;
 }
