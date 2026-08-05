@@ -42,8 +42,14 @@ const DESIGN_W = 1040;
 const DESIGN_H = 1280;
 
 function scaleUI() {
-    const vw = window.innerWidth || document.documentElement.clientWidth || DESIGN_W;
-    const vh = window.innerHeight || document.documentElement.clientHeight || DESIGN_H;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = document.documentElement.clientHeight || window.innerHeight;
+    
+    // Guard against temporary zero or corrupt dimensions during host editor resize starts
+    if (!vw || !vh || vw < 10 || vh < 10) {
+        return;
+    }
+    
     const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
     const offsetX = Math.max(0, (vw - DESIGN_W * scale) / 2);
     const offsetY = Math.max(0, (vh - DESIGN_H * scale) / 2);
