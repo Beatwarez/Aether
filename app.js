@@ -42,7 +42,7 @@ const DESIGN_W = 1040;
 const DESIGN_H = 1280;
 
 function scaleUI() {
-    const vw = window.innerWidth  || document.documentElement.clientWidth  || DESIGN_W;
+    const vw = window.innerWidth || document.documentElement.clientWidth || DESIGN_W;
     const vh = window.innerHeight || document.documentElement.clientHeight || DESIGN_H;
     const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H);
     const offsetX = (vw - DESIGN_W * scale) / 2;
@@ -56,7 +56,9 @@ function scaleUI() {
 }
 
 window.addEventListener('resize', scaleUI);
+window.addEventListener('load', scaleUI);
 document.addEventListener('DOMContentLoaded', scaleUI);
+scaleUI();
 
 // Bridge: Send call to C++
 let juceBridgeReady = false;
