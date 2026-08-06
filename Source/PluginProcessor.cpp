@@ -370,6 +370,7 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
     int activeSnap = (actP ? actP->get() : 1) - 1;
     activeSnap = juce::jlimit (0, 8, activeSnap);
+    editSnapshot = activeSnap;
     loadSnapshotParameters (activeSnap);
   } else {
     AetherWebView::logToFile ("setStateInformation: rootXml was null (failed to parse binary data).");
@@ -400,6 +401,7 @@ void AetherAudioProcessor::handleAsyncUpdate() {
   auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
   int activeSnap = (actP ? actP->get() : 1) - 1;
   activeSnap = juce::jlimit (0, 8, activeSnap);
+  editSnapshot = activeSnap;
   loadSnapshotParameters (activeSnap);
 }
 
@@ -417,6 +419,7 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
   if (parameterID == "activeSnapshot") {
     int newActiveSnap = (int)std::round(newValue) - 1;
     newActiveSnap = juce::jlimit (0, 8, newActiveSnap);
+    editSnapshot = newActiveSnap;
     
     // Kill on switch logic
     auto* kswP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch"));

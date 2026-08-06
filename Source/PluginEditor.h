@@ -28,6 +28,7 @@ public:
         int activeSnap = (actP ? actP->get() : 1) - 1;
         activeSnap = juce::jlimit (0, 8, activeSnap);
 
+        p.editSnapshot = activeSnap;
         int editSnap = p.editSnapshot;
         auto& snap = p.snapshots[editSnap];
 
