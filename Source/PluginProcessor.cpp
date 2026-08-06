@@ -75,7 +75,8 @@ void AetherAudioProcessor::prepareToPlay(double sampleRate,
 }
 
 double AetherAudioProcessor::getSyncTimeInMs() {
-  int syncIdx = (int)*apvts.getRawParameterValue("syncDivision");
+  auto* syncP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision"));
+  int syncIdx = syncP ? syncP->get() : 0;
   if (syncIdx == 0)
     return (double)*apvts.getRawParameterValue("delayTimeMs");
 
@@ -120,10 +121,14 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     triggerAsyncUpdate();
   }
 
-  bool pKill = *apvts.getRawParameterValue("killOnStop") > 0.5f;
-  bool pEnabled = *apvts.getRawParameterValue("enabled") > 0.5f;
-  int syncIdx = (int)std::round(*apvts.getRawParameterValue("syncDivision"));
-  int activeSnap = (int)std::round(*apvts.getRawParameterValue("activeSnapshot")) - 1;
+  auto* killP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnStop"));
+  bool pKill = killP ? killP->get() : true;
+  auto* enP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("enabled"));
+  bool pEnabled = enP ? enP->get() : true;
+  auto* syncP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision"));
+  int syncIdx = syncP ? syncP->get() : 0;
+  auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
+  int activeSnap = (actP ? actP->get() : 1) - 1;
   activeSnap = juce::jlimit(0, 8, activeSnap);
   int pStepCount = snapshots[activeSnap].stepCount;
 
@@ -362,7 +367,8 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     }
 
     // Sync the loaded active snapshot parameters
-    int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
+    auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
+    int activeSnap = (actP ? actP->get() : 1) - 1;
     activeSnap = juce::jlimit (0, 8, activeSnap);
     loadSnapshotParameters (activeSnap);
   } else {
@@ -391,7 +397,8 @@ void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
 }
 
 void AetherAudioProcessor::handleAsyncUpdate() {
-  int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
+  auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
+  int activeSnap = (actP ? actP->get() : 1) - 1;
   activeSnap = juce::jlimit (0, 8, activeSnap);
   loadSnapshotParameters (activeSnap);
 }
@@ -403,7 +410,8 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
   if (isUpdatingSnapshotParameters)
     return;
 
-  int activeSnap = (int)std::round(apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
+  auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
+  int activeSnap = (actP ? actP->get() : 1) - 1;
   activeSnap = juce::jlimit (0, 8, activeSnap);
 
   if (parameterID == "activeSnapshot") {
@@ -411,7 +419,8 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
     newActiveSnap = juce::jlimit (0, 8, newActiveSnap);
     
     // Kill on switch logic
-    if (apvts.getRawParameterValue ("killOnSwitch")->load() > 0.5f) {
+    auto* kswP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch"));
+    if (kswP && kswP->get()) {
       midiQueue.clear();
       activeNotes.clear();
       noteTracker.clear();

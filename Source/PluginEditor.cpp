@@ -119,32 +119,38 @@ void AetherAudioProcessorEditor::timerCallback()
     }
     // killOnStop (Global param — read from APVTS)
     {
-        float val = audioProcessor.apvts.getRawParameterValue ("killOnStop")->load();
+        auto* kosP = dynamic_cast<juce::AudioParameterBool*>(audioProcessor.apvts.getParameter("killOnStop"));
+        bool kosBool = kosP ? kosP->get() : true;
+        float val = kosBool ? 1.0f : 0.0f;
         if (std::abs (val - webView.localParams[4]) > 0.001f)
         {
             webView.localParams[4] = val;
             AetherWebView::logToFile ("timer pushing: killOnStop = " + juce::String (val));
-            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnStop', " + juce::String (val > 0.5f ? "true" : "false") + ");");
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnStop', " + juce::String (kosBool ? "true" : "false") + ");");
         }
     }
     // activeSnapshot — single global param, correctly read from APVTS
     {
-        float val = audioProcessor.apvts.getRawParameterValue ("activeSnapshot")->load();
+        auto* actP = dynamic_cast<juce::AudioParameterInt*>(audioProcessor.apvts.getParameter("activeSnapshot"));
+        int actVal = actP ? actP->get() : 1;
+        float val = (float)actVal;
         if (std::abs (val - webView.localParams[5]) > 0.001f)
         {
             webView.localParams[5] = val;
-            AetherWebView::logToFile ("timer pushing: activeSnapshot = " + juce::String (val));
-            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('activeSnapshot', " + juce::String ((int)std::round (val)) + ");");
+            AetherWebView::logToFile ("timer pushing: activeSnapshot = " + juce::String (actVal));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('activeSnapshot', " + juce::String (actVal) + ");");
         }
     }
     // killOnSwitch (Global param — read from APVTS)
     {
-        float val = audioProcessor.apvts.getRawParameterValue ("killOnSwitch")->load();
+        auto* kswP = dynamic_cast<juce::AudioParameterBool*>(audioProcessor.apvts.getParameter("killOnSwitch"));
+        bool kswBool = kswP ? kswP->get() : false;
+        float val = kswBool ? 1.0f : 0.0f;
         if (std::abs (val - webView.localParams[6]) > 0.001f)
         {
             webView.localParams[6] = val;
             AetherWebView::logToFile ("timer pushing: killOnSwitch = " + juce::String (val));
-            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnSwitch', " + juce::String (val > 0.5f ? "true" : "false") + ");");
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnSwitch', " + juce::String (kswBool ? "true" : "false") + ");");
         }
     }
 

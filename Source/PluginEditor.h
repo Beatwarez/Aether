@@ -24,7 +24,8 @@ public:
 
     static juce::String getFullStateJson (AetherAudioProcessor& p)
     {
-        int activeSnap = (int)std::round(p.apvts.getRawParameterValue ("activeSnapshot")->load()) - 1;
+        auto* actP = dynamic_cast<juce::AudioParameterInt*>(p.apvts.getParameter("activeSnapshot"));
+        int activeSnap = (actP ? actP->get() : 1) - 1;
         activeSnap = juce::jlimit (0, 8, activeSnap);
 
         int editSnap = p.editSnapshot;
@@ -48,8 +49,13 @@ public:
         stateObj->setProperty ("syncDivision", syncDivisionStr);
         
         stateObj->setProperty ("stepCount", snap.stepCount);
-        stateObj->setProperty ("killOnStop", p.apvts.getRawParameterValue("killOnStop")->load() > 0.5f);
-        stateObj->setProperty ("killOnSwitch", p.apvts.getRawParameterValue("killOnSwitch")->load() > 0.5f);
+        
+        auto* kosP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("killOnStop"));
+        stateObj->setProperty ("killOnStop", kosP ? kosP->get() : true);
+        
+        auto* kswP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("killOnSwitch"));
+        stateObj->setProperty ("killOnSwitch", kswP ? kswP->get() : false);
+        
         stateObj->setProperty ("activeSnapshot", activeSnap);
         stateObj->setProperty ("editSnapshot", editSnap);
         
