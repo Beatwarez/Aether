@@ -27,6 +27,8 @@ AetherAudioProcessor::AetherAudioProcessor()
   apvts.addParameterListener ("killOnStop", this);
   apvts.addParameterListener ("killOnSwitch", this);
   apvts.addParameterListener ("activeSnapshot", this);
+
+  initFactoryPresets();
 }
 
 AetherAudioProcessor::~AetherAudioProcessor() {
@@ -276,9 +278,11 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   }
 }
 
-void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
+std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
   std::unique_ptr<juce::XmlElement> rootXml(new juce::XmlElement("AetherState"));
   rootXml->setAttribute("editSnapshot", editSnapshot);
+  rootXml->setAttribute("currentBank", currentBank);
+  rootXml->setAttribute("currentPreset", currentPreset);
   
   // 1. Explicitly serialize APVTS parameters as XML attributes inside Parameters element
   auto *paramsXml = rootXml->createNewChildElement("Parameters");
@@ -322,10 +326,66 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
       stepXml->setAttribute("mute", snapshots[s].steps[i].muted);
     }
   }
+  return rootXml;
+}
+
+void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
+  editSnapshot = rootXml.getIntAttribute("editSnapshot", 0);
+  editSnapshot = juce::jlimit(0, 8, editSnapshot);
+  currentBank = rootXml.getStringAttribute("currentBank", "Factory Presets");
+  currentPreset = rootXml.getStringAttribute("currentPreset", "Init");
+
+  // 1. Read step snapshots
+  if (auto *snapshotsXml = rootXml.getChildByName("SNAPSHOTS")) {
+    for (auto *snapXml : snapshotsXml->getChildIterator()) {
+      int sId = snapXml->getIntAttribute("id");
+      if (sId >= 0 && sId < 9) {
+        snapshots[sId].stepCount = snapXml->getIntAttribute("stepCount", 15);
+        snapshots[sId].enabled = snapXml->getBoolAttribute("enabled", true);
+        snapshots[sId].delayTimeMs = (float)snapXml->getDoubleAttribute("delayTimeMs", 500.0);
+        snapshots[sId].syncDivision = snapXml->getIntAttribute("syncDivision", 0);
+        for (auto *stepXml : snapXml->getChildIterator()) {
+          int i = stepXml->getIntAttribute("id");
+          if (i >= 0 && i < 15) {
+            snapshots[sId].steps[i].pitchOffset = stepXml->getIntAttribute("pitch");
+            snapshots[sId].steps[i].velocity = stepXml->getIntAttribute("velocity");
+            snapshots[sId].steps[i].modwheel = stepXml->getIntAttribute("mod");
+            snapshots[sId].steps[i].probability = stepXml->getIntAttribute("prob");
+            snapshots[sId].steps[i].muted = stepXml->getBoolAttribute("mute");
+          }
+        }
+      }
+    }
+  }
   
-  // Debug log state saving
+  // 2. Load APVTS parameters cleanly from explicit Parameters XML attributes
+  if (auto *paramsXml = rootXml.getChildByName("Parameters")) {
+    if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("delayTimeMs")))
+      *p = (float)paramsXml->getDoubleAttribute("delayTimeMs", 500.0);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("enabled")))
+      *p = (paramsXml->getIntAttribute("enabled", 1) != 0);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("stepCount")))
+      *p = paramsXml->getIntAttribute("stepCount", 15);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnStop")))
+      *p = (paramsXml->getIntAttribute("killOnStop", 1) != 0);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch")))
+      *p = (paramsXml->getIntAttribute("killOnSwitch", 0) != 0);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision")))
+      *p = paramsXml->getIntAttribute("syncDivision", 0);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot")))
+      *p = paramsXml->getIntAttribute("activeSnapshot", 1);
+  }
+}
+
+void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
+  auto rootXml = createStateXml();
   AetherWebView::logToFile ("getStateInformation: saving XML = \n" + rootXml->toString());
-  
   juce::AudioProcessor::copyXmlToBinary(*rootXml, d);
 }
 
@@ -333,76 +393,10 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
   isInitializing = true;
   std::unique_ptr<juce::XmlElement> rootXml(
       juce::AudioProcessor::getXmlFromBinary(d, s));
-  if (rootXml != nullptr) {
+  if (rootXml != nullptr && rootXml->hasTagName("AetherState")) {
     AetherWebView::logToFile ("setStateInformation: loaded XML = \n" + rootXml->toString());
-    AetherWebView::logToFile ("setStateInformation: xml tag name = " + rootXml->getTagName());
-
-    editSnapshot = rootXml->getIntAttribute("editSnapshot", 0);
-
-    // 1. Read step snapshots
-    if (auto *snapshotsXml = rootXml->getChildByName("SNAPSHOTS")) {
-      for (auto *snapXml : snapshotsXml->getChildIterator()) {
-        int sId = snapXml->getIntAttribute("id");
-        if (sId >= 0 && sId < 9) {
-          snapshots[sId].stepCount = snapXml->getIntAttribute("stepCount", 15);
-          snapshots[sId].enabled = snapXml->getBoolAttribute("enabled", true);
-          snapshots[sId].delayTimeMs = (float)snapXml->getDoubleAttribute("delayTimeMs", 500.0);
-          snapshots[sId].syncDivision = snapXml->getIntAttribute("syncDivision", 0);
-          for (auto *stepXml : snapXml->getChildIterator()) {
-            int i = stepXml->getIntAttribute("id");
-            if (i >= 0 && i < 15) {
-              snapshots[sId].steps[i].pitchOffset = stepXml->getIntAttribute("pitch");
-              snapshots[sId].steps[i].velocity = stepXml->getIntAttribute("velocity");
-              snapshots[sId].steps[i].modwheel = stepXml->getIntAttribute("mod");
-              snapshots[sId].steps[i].probability = stepXml->getIntAttribute("prob");
-              snapshots[sId].steps[i].muted = stepXml->getBoolAttribute("mute");
-            }
-          }
-        }
-      }
-    }
-    // Fallback: if old sequence tag exists, load it into snapshot 0
-    else if (auto *sequenceXml = rootXml->getChildByName("SEQUENCE")) {
-      for (auto *stepXml : sequenceXml->getChildIterator()) {
-        int i = stepXml->getIntAttribute("id");
-        if (i >= 0 && i < 15) {
-          snapshots[0].steps[i].pitchOffset = stepXml->getIntAttribute("pitch");
-          snapshots[0].steps[i].velocity = stepXml->getIntAttribute("velocity");
-          snapshots[0].steps[i].modwheel = stepXml->getIntAttribute("mod");
-          snapshots[0].steps[i].probability = stepXml->getIntAttribute("prob");
-          snapshots[0].steps[i].muted = stepXml->getBoolAttribute("mute");
-        }
-      }
-    }
+    loadStateFromXml(*rootXml);
     
-    // 2. Load APVTS parameters cleanly from explicit Parameters XML attributes
-    if (auto *paramsXml = rootXml->getChildByName("Parameters")) {
-      if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("delayTimeMs")))
-        *p = (float)paramsXml->getDoubleAttribute("delayTimeMs", 500.0);
-
-      if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("enabled")))
-        *p = (paramsXml->getIntAttribute("enabled", 1) != 0);
-
-      if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("stepCount")))
-        *p = paramsXml->getIntAttribute("stepCount", 15);
-
-      if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnStop")))
-        *p = (paramsXml->getIntAttribute("killOnStop", 1) != 0);
-
-      if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch")))
-        *p = (paramsXml->getIntAttribute("killOnSwitch", 0) != 0);
-
-      if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision")))
-        *p = paramsXml->getIntAttribute("syncDivision", 0);
-
-      if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot")))
-        *p = paramsXml->getIntAttribute("activeSnapshot", 1);
-        
-      AetherWebView::logToFile ("setStateInformation: Parameters XML attributes successfully restored.");
-    } else {
-      AetherWebView::logToFile ("setStateInformation: WARNING - Parameters child not found!");
-    }
-
     // Sync the loaded active snapshot parameters
     auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
     int activeSnap = (actP ? actP->get() : 1) - 1;
@@ -410,9 +404,141 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
     editSnapshot = activeSnap;
     loadSnapshotParameters (activeSnap);
   } else {
-    AetherWebView::logToFile ("setStateInformation: rootXml was null (failed to parse binary data).");
+    AetherWebView::logToFile ("setStateInformation: rootXml was null or invalid.");
   }
   isInitializing = false;
+}
+
+juce::File AetherAudioProcessor::getAppFolder() {
+#if JUCE_MAC
+    juce::File dir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Application Support").getChildFile("Algebra Within").getChildFile("Aether");
+#else
+    juce::File dir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Algebra Within").getChildFile("Aether");
+#endif
+    if (!dir.exists()) dir.createDirectory();
+    return dir;
+}
+
+juce::File AetherAudioProcessor::getPresetsFolder() {
+    juce::File dir = getAppFolder().getChildFile("Presets");
+    if (!dir.exists()) dir.createDirectory();
+    return dir;
+}
+
+juce::File AetherAudioProcessor::getSettingsFolder() {
+    juce::File dir = getAppFolder().getChildFile("Settings");
+    if (!dir.exists()) dir.createDirectory();
+    return dir;
+}
+
+juce::File AetherAudioProcessor::getPreferencesFile() {
+    return getSettingsFolder().getChildFile("Settings.xml");
+}
+
+void AetherAudioProcessor::initFactoryPresets() {
+    juce::File factoryFile = getPresetsFolder().getChildFile("Factory Presets.xml");
+    if (!factoryFile.existsAsFile()) {
+        juce::XmlElement root("AetherPresets");
+        
+        // 1. Init
+        auto* pInit = root.createNewChildElement("AetherState");
+        pInit->setAttribute("name", "Init");
+        pInit->setAttribute("editSnapshot", 0);
+        auto* pInitParams = pInit->createNewChildElement("Parameters");
+        pInitParams->setAttribute("activeSnapshot", 1);
+        pInitParams->setAttribute("enabled", 1);
+        pInitParams->setAttribute("delayTimeMs", 500.0);
+        pInitParams->setAttribute("syncDivision", 8); // 1/4
+        pInitParams->setAttribute("stepCount", 15);
+        pInitParams->setAttribute("killOnStop", 1);
+        pInitParams->setAttribute("killOnSwitch", 0);
+        
+        auto* pInitSnaps = pInit->createNewChildElement("SNAPSHOTS");
+        for (int s = 0; s < 9; ++s) {
+            auto* snapXml = pInitSnaps->createNewChildElement("SNAPSHOT");
+            snapXml->setAttribute("id", s);
+            snapXml->setAttribute("stepCount", 15);
+            snapXml->setAttribute("enabled", 1);
+            snapXml->setAttribute("delayTimeMs", 500.0);
+            snapXml->setAttribute("syncDivision", 8);
+            for (int i = 0; i < 15; ++i) {
+                auto* stepXml = snapXml->createNewChildElement("STEP");
+                stepXml->setAttribute("id", i);
+                stepXml->setAttribute("pitch", 0);
+                stepXml->setAttribute("velocity", (int)std::round(127 - (i * (126.0 / 14.0))));
+                stepXml->setAttribute("mod", 0);
+                stepXml->setAttribute("prob", 100);
+                stepXml->setAttribute("mute", 0);
+            }
+        }
+        
+        // 2. Dotted Chord
+        auto* pDotted = root.createNewChildElement("AetherState");
+        pDotted->setAttribute("name", "Dotted Chord");
+        pDotted->setAttribute("editSnapshot", 0);
+        auto* pDottedParams = pDotted->createNewChildElement("Parameters");
+        pDottedParams->setAttribute("activeSnapshot", 1);
+        pDottedParams->setAttribute("enabled", 1);
+        pDottedParams->setAttribute("delayTimeMs", 375.0);
+        pDottedParams->setAttribute("syncDivision", 10); // 1/8d
+        pDottedParams->setAttribute("stepCount", 15);
+        pDottedParams->setAttribute("killOnStop", 1);
+        pDottedParams->setAttribute("killOnSwitch", 1);
+        
+        auto* pDottedSnaps = pDotted->createNewChildElement("SNAPSHOTS");
+        for (int s = 0; s < 9; ++s) {
+            auto* snapXml = pDottedSnaps->createNewChildElement("SNAPSHOT");
+            snapXml->setAttribute("id", s);
+            snapXml->setAttribute("stepCount", 15);
+            snapXml->setAttribute("enabled", 1);
+            snapXml->setAttribute("delayTimeMs", 375.0);
+            snapXml->setAttribute("syncDivision", 10);
+            for (int i = 0; i < 15; ++i) {
+                auto* stepXml = snapXml->createNewChildElement("STEP");
+                stepXml->setAttribute("id", i);
+                int offsets[15] = { 0, 3, 7, 12, 15, 19, 24, 0, 3, 7, 12, 15, 19, 24, 0 };
+                stepXml->setAttribute("pitch", offsets[i]);
+                stepXml->setAttribute("velocity", 100);
+                stepXml->setAttribute("mod", 0);
+                stepXml->setAttribute("prob", i % 2 == 0 ? 100 : 70);
+                stepXml->setAttribute("mute", 0);
+            }
+        }
+        
+        // 3. Classic 8th
+        auto* pClassic = root.createNewChildElement("AetherState");
+        pClassic->setAttribute("name", "Classic 8th");
+        pClassic->setAttribute("editSnapshot", 0);
+        auto* pClassicParams = pClassic->createNewChildElement("Parameters");
+        pClassicParams->setAttribute("activeSnapshot", 1);
+        pClassicParams->setAttribute("enabled", 1);
+        pClassicParams->setAttribute("delayTimeMs", 250.0);
+        pClassicParams->setAttribute("syncDivision", 11); // 1/8
+        pClassicParams->setAttribute("stepCount", 15);
+        pClassicParams->setAttribute("killOnStop", 1);
+        pClassicParams->setAttribute("killOnSwitch", 0);
+        
+        auto* pClassicSnaps = pClassic->createNewChildElement("SNAPSHOTS");
+        for (int s = 0; s < 9; ++s) {
+            auto* snapXml = pClassicSnaps->createNewChildElement("SNAPSHOT");
+            snapXml->setAttribute("id", s);
+            snapXml->setAttribute("stepCount", 15);
+            snapXml->setAttribute("enabled", 1);
+            snapXml->setAttribute("delayTimeMs", 250.0);
+            snapXml->setAttribute("syncDivision", 11);
+            for (int i = 0; i < 15; ++i) {
+                auto* stepXml = snapXml->createNewChildElement("STEP");
+                stepXml->setAttribute("id", i);
+                stepXml->setAttribute("pitch", 0);
+                stepXml->setAttribute("velocity", 100);
+                stepXml->setAttribute("mod", 0);
+                stepXml->setAttribute("prob", 100);
+                stepXml->setAttribute("mute", 0);
+            }
+        }
+        
+        root.writeTo(factoryFile);
+    }
 }
 
 void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {

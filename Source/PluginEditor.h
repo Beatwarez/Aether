@@ -208,6 +208,55 @@ public:
                             }
                         }
                     }
+                    else if (paramName == "loadPreset")
+                    {
+                        auto jsonVar = juce::JSON::parse (args[1].toString());
+                        if (auto* obj = jsonVar.getDynamicObject())
+                        {
+                            juce::String bank = obj->getProperty ("bank").toString();
+                            juce::String preset = obj->getProperty ("preset").toString();
+                            webViewInstance->loadPreset (bank, preset);
+                        }
+                    }
+                    else if (paramName == "savePreset")
+                    {
+                        auto jsonVar = juce::JSON::parse (args[1].toString());
+                        if (auto* obj = jsonVar.getDynamicObject())
+                        {
+                            juce::String bank = obj->getProperty ("bank").toString();
+                            juce::String preset = obj->getProperty ("preset").toString();
+                            webViewInstance->savePreset (bank, preset);
+                        }
+                    }
+                    else if (paramName == "deletePreset")
+                    {
+                        auto jsonVar = juce::JSON::parse (args[1].toString());
+                        if (auto* obj = jsonVar.getDynamicObject())
+                        {
+                            juce::String bank = obj->getProperty ("bank").toString();
+                            juce::String preset = obj->getProperty ("preset").toString();
+                            webViewInstance->deletePreset (bank, preset);
+                        }
+                    }
+                    else if (paramName == "togglePresetFavorite")
+                    {
+                        auto jsonVar = juce::JSON::parse (args[1].toString());
+                        if (auto* obj = jsonVar.getDynamicObject())
+                        {
+                            juce::String bank = obj->getProperty ("bank").toString();
+                            juce::String preset = obj->getProperty ("preset").toString();
+                            webViewInstance->togglePresetFavorite (bank, preset);
+                        }
+                    }
+                    else if (paramName == "createBank")
+                    {
+                        juce::String bankName = args[1].toString();
+                        webViewInstance->createBank (bankName);
+                    }
+                    else if (paramName == "refreshPresetManager")
+                    {
+                        webViewInstance->triggerPresetManagerUpdate();
+                    }
                     else if (paramName == "copyActiveSnapshot")
                     {
                         int editSnap = p.editSnapshot;
@@ -353,6 +402,205 @@ public:
         juce::String fullStateJson = getFullStateJson (processor);
         evaluateJavascript ("if (window.aetherUI) window.aetherUI.initializeState('" + fullStateJson + "');");
         logToFile ("pageFinishedLoading: caches reset, timer will push full state on next tick.");
+        triggerPresetManagerUpdate();
+    }
+
+    juce::String getPresetManagerStatusJson()
+    {
+        juce::DynamicObject::Ptr statusObj = new juce::DynamicObject();
+        statusObj->setProperty ("currentBank", processor.currentBank);
+        statusObj->setProperty ("currentPreset", processor.currentPreset);
+
+        juce::Array<juce::var> banksArray;
+        juce::Array<juce::var> presetsArray;
+
+        auto presetsFolder = processor.getPresetsFolder();
+        auto files = presetsFolder.findChildFiles (juce::File::findFiles, false, "*.xml");
+        
+        for (const auto& f : files)
+        {
+            juce::String bankName = f.getFileNameWithoutExtension();
+            banksArray.add (bankName);
+
+            if (bankName == processor.currentBank)
+            {
+                juce::XmlDocument doc (f);
+                if (auto root = doc.getDocumentElement())
+                {
+                    for (auto* child : root->getChildIterator())
+                    {
+                        if (child->hasAttribute ("name"))
+                        {
+                            juce::DynamicObject::Ptr presetObj = new juce::DynamicObject();
+                            presetObj->setProperty ("name", child->getStringAttribute ("name"));
+                            presetObj->setProperty ("favorite", child->getBoolAttribute ("favorite", false));
+                            presetsArray.add (juce::var (presetObj.get()));
+                        }
+                    }
+                }
+            }
+        }
+
+        statusObj->setProperty ("banks", banksArray);
+        statusObj->setProperty ("presets", presetsArray);
+
+        return juce::JSON::toString (juce::var (statusObj.get()), true).replace ("'", "\\'");
+    }
+
+    void triggerPresetManagerUpdate()
+    {
+        juce::String jsonStr = getPresetManagerStatusJson();
+        evaluateJavascript ("if (window.aetherUI) window.aetherUI.updatePresetManager('" + jsonStr + "');");
+    }
+
+    void loadPreset (const juce::String& bank, const juce::String& preset)
+    {
+        if (preset.isEmpty())
+        {
+            processor.currentBank = bank;
+            triggerPresetManagerUpdate();
+            return;
+        }
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        juce::XmlDocument doc (file);
+        if (auto root = doc.getDocumentElement())
+        {
+            for (auto* child : root->getChildIterator())
+            {
+                if (child->getStringAttribute ("name") == preset)
+                {
+                    processor.currentBank = bank;
+                    processor.currentPreset = preset;
+                    processor.loadStateFromXml (*child);
+                    
+                    // Trigger reload of active snapshot parameter in C++
+                    auto* actP = dynamic_cast<juce::AudioParameterInt*> (processor.apvts.getParameter ("activeSnapshot"));
+                    int activeSnap = (actP ? actP->get() : 1) - 1;
+                    activeSnap = juce::jlimit (0, 8, activeSnap);
+                    processor.editSnapshot = activeSnap;
+                    processor.loadSnapshotParameters (activeSnap);
+                    
+                    // Update JS UI with new full state and trigger preset status update
+                    juce::String fullStateJson = getFullStateJson (processor);
+                    evaluateJavascript ("if (window.aetherUI) { window.aetherUI.initializeState('" + fullStateJson + "'); }");
+                    
+                    // Reset all caches in the editor so that they update correctly on next timer tick
+                    for (int i = 0; i < 7; ++i)
+                        localParams[i] = -1.0f;
+                    localStepCount = -1;
+                    localActiveSnapshot = -1;
+                    
+                    triggerPresetManagerUpdate();
+                    return;
+                }
+            }
+        }
+    }
+
+    void savePreset (const juce::String& bank, const juce::String& preset)
+    {
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        juce::XmlDocument doc (file);
+        std::unique_ptr<juce::XmlElement> root = doc.getDocumentElement();
+        if (root == nullptr || root->getTagName() != "AetherPresets")
+        {
+            root = std::make_unique<juce::XmlElement> ("AetherPresets");
+        }
+
+        auto presetXml = processor.createStateXml();
+        presetXml->setAttribute ("name", preset);
+
+        bool wasFav = false;
+        juce::XmlElement* existingChild = root->getChildByName (presetXml->getTagName());
+        while (existingChild != nullptr)
+        {
+            if (existingChild->getStringAttribute ("name") == preset)
+            {
+                wasFav = existingChild->getBoolAttribute ("favorite", false);
+                root->removeChildElement (existingChild, true);
+                existingChild = root->getChildByName (presetXml->getTagName());
+            }
+            else
+            {
+                existingChild = existingChild->getNextElement();
+            }
+        }
+
+        presetXml->setAttribute ("favorite", wasFav);
+        root->addChildElement (presetXml.release());
+        root->writeTo (file);
+
+        processor.currentBank = bank;
+        processor.currentPreset = preset;
+
+        triggerPresetManagerUpdate();
+    }
+
+    void deletePreset (const juce::String& bank, const juce::String& preset)
+    {
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        if (!file.existsAsFile()) return;
+
+        juce::XmlDocument doc (file);
+        std::unique_ptr<juce::XmlElement> root = doc.getDocumentElement();
+        if (root != nullptr)
+        {
+            juce::XmlElement* childToRemove = nullptr;
+            for (auto* child : root->getChildIterator())
+            {
+                if (child->getStringAttribute ("name") == preset)
+                {
+                    childToRemove = child;
+                    break;
+                }
+            }
+            if (childToRemove != nullptr)
+            {
+                root->removeChildElement (childToRemove, true);
+                root->writeTo (file);
+                if (processor.currentPreset == preset)
+                {
+                    processor.currentPreset = "Init";
+                }
+                triggerPresetManagerUpdate();
+            }
+        }
+    }
+
+    void togglePresetFavorite (const juce::String& bank, const juce::String& preset)
+    {
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        if (!file.existsAsFile()) return;
+
+        juce::XmlDocument doc (file);
+        std::unique_ptr<juce::XmlElement> root = doc.getDocumentElement();
+        if (root != nullptr)
+        {
+            for (auto* child : root->getChildIterator())
+            {
+                if (child->getStringAttribute ("name") == preset)
+                {
+                    bool isFav = child->getBoolAttribute ("favorite", false);
+                    child->setAttribute ("favorite", !isFav);
+                    root->writeTo (file);
+                    triggerPresetManagerUpdate();
+                    return;
+                }
+            }
+        }
+    }
+
+    void createBank (const juce::String& bankName)
+    {
+        juce::File file = processor.getPresetsFolder().getChildFile (bankName + ".xml");
+        if (!file.exists())
+        {
+            juce::XmlElement root ("AetherPresets");
+            root.writeTo (file);
+        }
+        processor.currentBank = bankName;
+        processor.currentPreset = "Init";
+        triggerPresetManagerUpdate();
     }
 
 private:
@@ -376,6 +624,9 @@ public:
 private:
     AetherAudioProcessor& audioProcessor;
     AetherWebView webView;
+
+    void loadWindowSize();
+    void saveWindowSize();
 
     // Helper to serialize all 15 steps to JSON
     juce::String getStepsJson();

@@ -20,7 +20,7 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor (AetherAudioProcessor& p)
     setResizable (true, true);
     getConstrainer()->setFixedAspectRatio (1040.0 / 1280.0);
     setResizeLimits (520, 640, 2080, 2560);
-    setSize (1040, 1280);
+    loadWindowSize();
 }
 
 // ==========================================================================
@@ -28,6 +28,7 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor (AetherAudioProcessor& p)
 // ==========================================================================
 AetherAudioProcessorEditor::~AetherAudioProcessorEditor()
 {
+    saveWindowSize();
 }
 
 // ==========================================================================
@@ -204,4 +205,29 @@ juce::String AetherAudioProcessorEditor::getStepsJson()
     }
     
     return juce::JSON::toString (stepsArray, true).replace ("'", "\\'");
+}
+
+void AetherAudioProcessorEditor::loadWindowSize()
+{
+    juce::File prefFile = audioProcessor.getPreferencesFile();
+    if (prefFile.existsAsFile())
+    {
+        if (auto xml = juce::XmlDocument::parse (prefFile))
+        {
+            int w = xml->getIntAttribute ("width", 1040);
+            int h = xml->getIntAttribute ("height", 1280);
+            setSize (w, h);
+            return;
+        }
+    }
+    setSize (1040, 1280);
+}
+
+void AetherAudioProcessorEditor::saveWindowSize()
+{
+    juce::File prefFile = audioProcessor.getPreferencesFile();
+    juce::XmlElement xml ("AetherPreferences");
+    xml.setAttribute ("width", getWidth());
+    xml.setAttribute ("height", getHeight());
+    xml.writeTo (prefFile);
 }

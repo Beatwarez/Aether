@@ -80,6 +80,18 @@ public:
   std::atomic<bool> stopRequested{false};
   std::atomic<int> activityHits{0};
 
+  juce::String currentBank{ "Factory Presets" };
+  juce::String currentPreset{ "Init" };
+
+  juce::File getAppFolder();
+  juce::File getPresetsFolder();
+  juce::File getSettingsFolder();
+  juce::File getPreferencesFile();
+  void initFactoryPresets();
+
+  std::unique_ptr<juce::XmlElement> createStateXml();
+  void loadStateFromXml(const juce::XmlElement& rootXml);
+
 private:
   double lastSampleRate = 44100.0;
   long long totalSamplesProcessed = 0;

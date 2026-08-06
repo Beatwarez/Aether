@@ -28,7 +28,13 @@ let state = {
         modwheel: 0,
         probability: 100,
         muted: false
-    }))
+    })),
+    currentBank: 'Factory Presets',
+    currentPreset: 'Init',
+    banks: [],
+    presets: [],
+    presetManagerMode: 'load',
+    selectedBank: 'Factory Presets'
 };
 
 // Drag tracking variables
@@ -686,8 +692,219 @@ const aetherUI = {
                 cell.classList.remove('active');
             }, 100);
         }
+    },
+    updatePresetManager: (jsonStr) => {
+        try {
+            const data = JSON.parse(jsonStr);
+            state.currentBank = data.currentBank;
+            state.currentPreset = data.currentPreset;
+            state.banks = data.banks;
+            state.presets = data.presets;
+            
+            // Update Top Presets Display Text
+            const displayBox = document.getElementById("preset-display-box");
+            if (displayBox) {
+                displayBox.textContent = `${state.currentBank.toUpperCase()} : ${state.currentPreset.toUpperCase()}`;
+            }
+            
+            // If the modal is active, update the bank & presets list
+            const modal = document.getElementById("preset-modal");
+            if (modal && modal.classList.contains("active")) {
+                renderPresetModalLists();
+            }
+        } catch (e) {
+            console.error("Error parsing preset manager data:", e);
+        }
     }
 };
+
+function renderPresetModalLists() {
+    // 1. Render Banks column
+    const banksList = document.getElementById("banks-list");
+    if (banksList) {
+        banksList.innerHTML = "";
+        state.banks.forEach(bank => {
+            const item = document.createElement("div");
+            item.className = "list-item";
+            if (bank === state.currentBank) {
+                item.classList.add("active");
+            }
+            item.textContent = bank.toUpperCase();
+            item.addEventListener("click", () => {
+                sendParamToCpp("loadPreset", JSON.stringify({ bank: bank, preset: "" }));
+            });
+            banksList.appendChild(item);
+        });
+    }
+
+    // 2. Render Presets column
+    const presetsList = document.getElementById("presets-list");
+    if (presetsList) {
+        presetsList.innerHTML = "";
+        state.presets.forEach(preset => {
+            const item = document.createElement("div");
+            item.className = "list-item";
+            if (preset.name === state.currentPreset) {
+                item.classList.add("active");
+            }
+            
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = preset.name.toUpperCase();
+            nameSpan.style.flex = "1";
+            nameSpan.addEventListener("click", () => {
+                if (state.presetManagerMode === 'load') {
+                    sendParamToCpp("loadPreset", JSON.stringify({ bank: state.currentBank, preset: preset.name }));
+                    closePresetModal();
+                } else {
+                    const input = document.getElementById("new-preset-name");
+                    if (input) {
+                        input.value = preset.name;
+                    }
+                }
+            });
+            item.appendChild(nameSpan);
+
+            // Controls container
+            const actions = document.createElement("div");
+            actions.className = "preset-item-actions";
+
+            // Favorite star button
+            const favBtn = document.createElement("button");
+            favBtn.className = "preset-action-btn favorite";
+            if (preset.favorite) {
+                favBtn.classList.add("active");
+            }
+            favBtn.textContent = preset.favorite ? "★" : "☆";
+            favBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                sendParamToCpp("togglePresetFavorite", JSON.stringify({ bank: state.currentBank, preset: preset.name }));
+            });
+            actions.appendChild(favBtn);
+
+            // Delete button (hide for Factory Presets)
+            if (state.currentBank !== "Factory Presets") {
+                const delBtn = document.createElement("button");
+                delBtn.className = "preset-action-btn delete";
+                delBtn.textContent = "×";
+                delBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (confirm(`DELETE PRESET "${preset.name.toUpperCase()}"?`)) {
+                        sendParamToCpp("deletePreset", JSON.stringify({ bank: state.currentBank, preset: preset.name }));
+                    }
+                });
+                actions.appendChild(delBtn);
+            }
+
+            item.appendChild(actions);
+            presetsList.appendChild(item);
+        });
+    }
+}
+
+function openPresetModal(mode = 'load') {
+    state.presetManagerMode = mode;
+    const modal = document.getElementById("preset-modal");
+    if (!modal) return;
+
+    modal.classList.add("active");
+
+    const header = modal.querySelector(".preset-modal-header");
+    if (header) {
+        header.textContent = mode === 'save' ? "SAVE PRESET" : "AETHER PRESETS";
+    }
+
+    const saveRow = document.getElementById("save-preset-row");
+    if (saveRow) {
+        saveRow.style.display = mode === 'save' ? "flex" : "none";
+        if (mode === 'save') {
+            const input = document.getElementById("new-preset-name");
+            if (input) {
+                input.value = state.currentBank === "Factory Presets" ? "" : state.currentPreset;
+                input.focus();
+            }
+        }
+    }
+
+    sendParamToCpp("refreshPresetManager", 0);
+}
+
+function closePresetModal() {
+    const modal = document.getElementById("preset-modal");
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
+
+function switchPresetRelative(offset) {
+    if (!state.presets || state.presets.length === 0) return;
+    
+    let index = state.presets.findIndex(p => p.name === state.currentPreset);
+    if (index === -1) {
+        index = 0;
+    } else {
+        index = (index + offset + state.presets.length) % state.presets.length;
+    }
+    
+    const targetPreset = state.presets[index];
+    if (targetPreset) {
+        sendParamToCpp("loadPreset", JSON.stringify({ bank: state.currentBank, preset: targetPreset.name }));
+    }
+}
+
+function initPresetEventListeners() {
+    const prevBtn = document.getElementById("prev-preset-btn");
+    if (prevBtn) prevBtn.addEventListener("click", () => switchPresetRelative(-1));
+
+    const nextBtn = document.getElementById("next-preset-btn");
+    if (nextBtn) nextBtn.addEventListener("click", () => switchPresetRelative(1));
+
+    const displayBox = document.getElementById("preset-display-box");
+    if (displayBox) displayBox.addEventListener("click", () => openPresetModal('load'));
+
+    const saveBtn = document.getElementById("save-preset-btn");
+    if (saveBtn) saveBtn.addEventListener("click", () => openPresetModal('save'));
+
+    const closeBtn = document.getElementById("close-preset-modal-btn");
+    if (closeBtn) closeBtn.addEventListener("click", closePresetModal);
+
+    const createBankBtn = document.getElementById("create-bank-btn");
+    if (createBankBtn) {
+        createBankBtn.addEventListener("click", () => {
+            const bankName = prompt("ENTER NEW BANK NAME:");
+            if (bankName && bankName.trim()) {
+                sendParamToCpp("createBank", bankName.trim());
+            }
+        });
+    }
+
+    const confirmSaveBtn = document.getElementById("confirm-save-btn");
+    if (confirmSaveBtn) {
+        confirmSaveBtn.addEventListener("click", () => {
+            const input = document.getElementById("new-preset-name");
+            if (!input) return;
+            const presetName = input.value.trim();
+            if (!presetName) {
+                alert("PLEASE ENTER A VALID PRESET NAME!");
+                return;
+            }
+            let targetBank = state.currentBank;
+            if (targetBank === "Factory Presets") {
+                targetBank = "User Presets";
+            }
+            sendParamToCpp("savePreset", JSON.stringify({ bank: targetBank, preset: presetName }));
+            closePresetModal();
+        });
+    }
+    
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            closePresetModal();
+        }
+    });
+}
+
+// Initialize listeners on DOM load
+initPresetEventListeners();
 
 // Register bridge functions on mount
 window.aetherUI = aetherUI;

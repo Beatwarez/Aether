@@ -183,6 +183,14 @@
             </div>
         </div>
 
+        <!-- Top Presets Bar -->
+        <div class="top-presets-bar">
+            <button id="prev-preset-btn" class="preset-nav-btn" title="Previous Preset">&lt;</button>
+            <div id="preset-display-box" class="preset-display-box">Loading...</div>
+            <button id="next-preset-btn" class="preset-nav-btn" title="Next Preset">&gt;</button>
+            <button id="save-preset-btn" class="preset-save-btn" title="Save Preset">SAVE</button>
+        </div>
+
         <!-- Header Right Graphic (Anchored Top Right) -->
         <div class="top-header-right header-right">
             <svg class="header-logo-right" version="1.0" xmlns="http://www.w3.org/2000/svg" width="3010px" height="1080px" viewBox="0 0 3010 1080" preserveAspectRatio="xMidYMid meet">
@@ -301,6 +309,38 @@
         </main>
 
         <div id="build-version-label"></div>
+
+        <!-- Preset Manager Modal Overlay -->
+        <div id="preset-modal" class="preset-modal-overlay">
+            <div class="preset-modal-content">
+                <div class="preset-modal-header">AETHER PRESETS</div>
+                
+                <div class="preset-modal-columns">
+                    <div class="preset-modal-column">
+                        <div class="column-title">BANKS</div>
+                        <div id="banks-list" class="list-box">
+                            <!-- Dynamic banks -->
+                        </div>
+                        <button id="create-bank-btn" class="preset-modal-btn secondary" style="margin-top: 10px;">+ NEW BANK</button>
+                    </div>
+                    
+                    <div class="preset-modal-column">
+                        <div class="column-title">PRESETS</div>
+                        <div id="presets-list" class="list-box">
+                            <!-- Dynamic presets -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preset-modal-footer">
+                    <div id="save-preset-row" class="preset-save-row" style="display: none; margin-bottom: 10px;">
+                        <input type="text" id="new-preset-name" class="preset-input" placeholder="ENTER PRESET NAME..." maxlength="20" />
+                        <button id="confirm-save-btn" class="preset-modal-btn">SAVE</button>
+                    </div>
+                    <button id="close-preset-modal-btn" class="preset-modal-btn secondary">CLOSE</button>
+                </div>
+            </div>
+        </div>
     </div>
     <script src="app.js"></script>
 </body>
