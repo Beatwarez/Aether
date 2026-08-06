@@ -280,13 +280,30 @@ void AetherAudioProcessor::getStateInformation(juce::MemoryBlock &d) {
   std::unique_ptr<juce::XmlElement> rootXml(new juce::XmlElement("AetherState"));
   rootXml->setAttribute("editSnapshot", editSnapshot);
   
-  auto state = apvts.copyState();
-  auto paramsXml = state.createXml();
-  if (paramsXml != nullptr) {
-    rootXml->addChildElement(paramsXml.release());
-  }
+  // 1. Explicitly serialize APVTS parameters as XML attributes inside Parameters element
+  auto *paramsXml = rootXml->createNewChildElement("Parameters");
+  if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("delayTimeMs")))
+    paramsXml->setAttribute("delayTimeMs", (double)p->get());
+    
+  if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("enabled")))
+    paramsXml->setAttribute("enabled", p->get() ? 1 : 0);
+    
+  if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("stepCount")))
+    paramsXml->setAttribute("stepCount", p->get());
+    
+  if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnStop")))
+    paramsXml->setAttribute("killOnStop", p->get() ? 1 : 0);
+    
+  if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch")))
+    paramsXml->setAttribute("killOnSwitch", p->get() ? 1 : 0);
+    
+  if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision")))
+    paramsXml->setAttribute("syncDivision", p->get());
+    
+  if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot")))
+    paramsXml->setAttribute("activeSnapshot", p->get());
   
-  // Save Sequencer Snapshots
+  // 2. Save Sequencer Snapshots
   auto *snapshotsXml = rootXml->createNewChildElement("SNAPSHOTS");
   for (int s = 0; s < 9; ++s) {
     auto *snapXml = snapshotsXml->createNewChildElement("SNAPSHOT");
@@ -358,10 +375,30 @@ void AetherAudioProcessor::setStateInformation(const void *d, int s) {
       }
     }
     
-    // 2. Load APVTS parameters cleanly from the dedicated Parameters child
+    // 2. Load APVTS parameters cleanly from explicit Parameters XML attributes
     if (auto *paramsXml = rootXml->getChildByName("Parameters")) {
-      apvts.replaceState (juce::ValueTree::fromXml (*paramsXml));
-      AetherWebView::logToFile ("setStateInformation: replaceState was successfully called.");
+      if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("delayTimeMs")))
+        *p = (float)paramsXml->getDoubleAttribute("delayTimeMs", 500.0);
+
+      if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("enabled")))
+        *p = (paramsXml->getIntAttribute("enabled", 1) != 0);
+
+      if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("stepCount")))
+        *p = paramsXml->getIntAttribute("stepCount", 15);
+
+      if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnStop")))
+        *p = (paramsXml->getIntAttribute("killOnStop", 1) != 0);
+
+      if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch")))
+        *p = (paramsXml->getIntAttribute("killOnSwitch", 0) != 0);
+
+      if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision")))
+        *p = paramsXml->getIntAttribute("syncDivision", 0);
+
+      if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot")))
+        *p = paramsXml->getIntAttribute("activeSnapshot", 1);
+        
+      AetherWebView::logToFile ("setStateInformation: Parameters XML attributes successfully restored.");
     } else {
       AetherWebView::logToFile ("setStateInformation: WARNING - Parameters child not found!");
     }
