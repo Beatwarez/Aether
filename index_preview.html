@@ -322,6 +322,11 @@
                             <!-- Dynamic banks -->
                         </div>
                         <button id="create-bank-btn" class="preset-modal-btn secondary" style="margin-top: 10px;">+ NEW BANK</button>
+                        <div id="create-bank-row" class="preset-save-row" style="display: none; margin-top: 10px; gap: 6px;">
+                            <input type="text" id="new-bank-name" class="preset-input" placeholder="BANK NAME..." maxlength="15" />
+                            <button id="confirm-create-bank-btn" class="preset-modal-btn" style="padding: 0 10px; font-size: 14px;">✓</button>
+                            <button id="cancel-create-bank-btn" class="preset-modal-btn secondary" style="padding: 0 10px; font-size: 14px;">✗</button>
+                        </div>
                     </div>
                     
                     <div class="preset-modal-column">
@@ -338,6 +343,17 @@
                         <button id="confirm-save-btn" class="preset-modal-btn">SAVE</button>
                     </div>
                     <button id="close-preset-modal-btn" class="preset-modal-btn secondary">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Alert/Confirm Modal -->
+        <div id="custom-alert-modal" class="preset-modal-overlay" style="z-index: 1100;">
+            <div class="preset-modal-content" style="width: 400px; height: 260px; justify-content: center; gap: 20px;">
+                <div id="custom-alert-text" class="preset-modal-header" style="font-size: 14px; margin-bottom: 0; word-break: break-word;">DELETE PRESET?</div>
+                <div class="preset-save-row" style="justify-content: center; gap: 20px;">
+                    <button id="custom-alert-yes-btn" class="preset-modal-btn">YES</button>
+                    <button id="custom-alert-no-btn" class="preset-modal-btn secondary">NO</button>
                 </div>
             </div>
         </div>

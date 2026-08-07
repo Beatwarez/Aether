@@ -788,9 +788,9 @@ function renderPresetModalLists() {
                 delBtn.textContent = "×";
                 delBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
-                    if (confirm(`DELETE PRESET "${preset.name.toUpperCase()}"?`)) {
+                    showCustomAlert(`DELETE PRESET "${preset.name.toUpperCase()}"?`, () => {
                         sendParamToCpp("deletePreset", JSON.stringify({ bank: state.currentBank, preset: preset.name }));
-                    }
+                    }, () => {});
                 });
                 actions.appendChild(delBtn);
             }
@@ -835,6 +835,40 @@ function closePresetModal() {
     }
 }
 
+function showCustomAlert(message, onYes, onNo = null) {
+    const modal = document.getElementById("custom-alert-modal");
+    const textEl = document.getElementById("custom-alert-text");
+    const yesBtn = document.getElementById("custom-alert-yes-btn");
+    const noBtn = document.getElementById("custom-alert-no-btn");
+    if (!modal || !textEl || !yesBtn || !noBtn) return;
+
+    textEl.textContent = message.toUpperCase();
+    modal.classList.add("active");
+
+    const newYesBtn = yesBtn.cloneNode(true);
+    const newNoBtn = noBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+    noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+
+    if (onNo) {
+        newNoBtn.style.display = "block";
+        newNoBtn.textContent = "NO";
+        newNoBtn.addEventListener("click", () => {
+            modal.classList.remove("active");
+            onNo();
+        });
+        newYesBtn.textContent = "YES";
+    } else {
+        newNoBtn.style.display = "none";
+        newYesBtn.textContent = "OK";
+    }
+
+    newYesBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+        onYes();
+    });
+}
+
 function switchPresetRelative(offset) {
     if (!state.presets || state.presets.length === 0) return;
     
@@ -868,11 +902,48 @@ function initPresetEventListeners() {
     if (closeBtn) closeBtn.addEventListener("click", closePresetModal);
 
     const createBankBtn = document.getElementById("create-bank-btn");
-    if (createBankBtn) {
+    const createBankRow = document.getElementById("create-bank-row");
+    const newBankNameInput = document.getElementById("new-bank-name");
+    const confirmCreateBankBtn = document.getElementById("confirm-create-bank-btn");
+    const cancelCreateBankBtn = document.getElementById("cancel-create-bank-btn");
+
+    if (createBankBtn && createBankRow) {
         createBankBtn.addEventListener("click", () => {
-            const bankName = prompt("ENTER NEW BANK NAME:");
-            if (bankName && bankName.trim()) {
-                sendParamToCpp("createBank", bankName.trim());
+            createBankBtn.style.display = "none";
+            createBankRow.style.display = "flex";
+            if (newBankNameInput) {
+                newBankNameInput.value = "";
+                newBankNameInput.focus();
+            }
+        });
+    }
+
+    if (cancelCreateBankBtn && createBankBtn && createBankRow) {
+        cancelCreateBankBtn.addEventListener("click", () => {
+            createBankRow.style.display = "none";
+            createBankBtn.style.display = "block";
+        });
+    }
+
+    if (confirmCreateBankBtn && createBankBtn && createBankRow && newBankNameInput) {
+        const performCreateBank = () => {
+            const bankName = newBankNameInput.value.trim();
+            if (!bankName) {
+                showCustomAlert("PLEASE ENTER A VALID BANK NAME!", () => {});
+                return;
+            }
+            sendParamToCpp("createBank", bankName);
+            createBankRow.style.display = "none";
+            createBankBtn.style.display = "block";
+        };
+        confirmCreateBankBtn.addEventListener("click", performCreateBank);
+        newBankNameInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                performCreateBank();
+            } else if (e.key === "Escape") {
+                createBankRow.style.display = "none";
+                createBankBtn.style.display = "block";
+                e.stopPropagation();
             }
         });
     }
@@ -884,7 +955,7 @@ function initPresetEventListeners() {
             if (!input) return;
             const presetName = input.value.trim();
             if (!presetName) {
-                alert("PLEASE ENTER A VALID PRESET NAME!");
+                showCustomAlert("PLEASE ENTER A VALID PRESET NAME!", () => {});
                 return;
             }
             let targetBank = state.currentBank;
@@ -898,7 +969,12 @@ function initPresetEventListeners() {
     
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
-            closePresetModal();
+            const alertModal = document.getElementById("custom-alert-modal");
+            if (alertModal && alertModal.classList.contains("active")) {
+                alertModal.classList.remove("active");
+            } else {
+                closePresetModal();
+            }
         }
     });
 }
