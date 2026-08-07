@@ -1045,3 +1045,29 @@ body {
     box-shadow: none;
 }
 
+/* Right-Click Context Menu */
+.context-menu {
+    background: rgba(5, 5, 5, 0.95);
+    border: 1px solid rgba(0, 255, 65, 0.5);
+    box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
+    padding: 4px 0;
+    border-radius: 2px;
+    min-width: 130px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+}
+
+.context-menu-item {
+    color: rgba(0, 255, 65, 0.8);
+    padding: 8px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+}
+
+.context-menu-item:hover {
+    background: rgba(0, 255, 65, 0.15);
+    color: var(--crt-green);
+    text-shadow: 0 0 5px var(--crt-green);
+}
+

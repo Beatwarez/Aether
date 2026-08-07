@@ -733,6 +733,11 @@ function renderPresetModalLists() {
             item.addEventListener("click", () => {
                 sendParamToCpp("loadPreset", JSON.stringify({ bank: bank, preset: "" }));
             });
+            item.addEventListener("contextmenu", (e) => {
+                if (bank === "Factory Presets") return;
+                e.preventDefault();
+                showContextMenu(e.pageX, e.pageY, "deleteBank", bank);
+            });
             banksList.appendChild(item);
         });
     }
@@ -747,6 +752,11 @@ function renderPresetModalLists() {
             if (preset.name === state.currentPreset) {
                 item.classList.add("active");
             }
+            item.addEventListener("contextmenu", (e) => {
+                if (state.currentBank === "Factory Presets") return;
+                e.preventDefault();
+                showContextMenu(e.pageX, e.pageY, "deletePreset", preset.name);
+            });
             
             const nameSpan = document.createElement("span");
             nameSpan.textContent = preset.name.toUpperCase();
@@ -869,6 +879,28 @@ function showCustomAlert(message, onYes, onNo = null) {
     });
 }
 
+let contextMenuTarget = null;
+
+function showContextMenu(x, y, type, target) {
+    const menu = document.getElementById("custom-context-menu");
+    const actionEl = document.getElementById("context-menu-action");
+    if (!menu || !actionEl) return;
+
+    contextMenuTarget = { type, target };
+    actionEl.textContent = type === "deleteBank" ? "DELETE BANK" : "DELETE PRESET";
+
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.style.display = "block";
+}
+
+function hideContextMenu() {
+    const menu = document.getElementById("custom-context-menu");
+    if (menu) {
+        menu.style.display = "none";
+    }
+}
+
 function switchPresetRelative(offset) {
     if (!state.presets || state.presets.length === 0) return;
     
@@ -967,13 +999,39 @@ function initPresetEventListeners() {
         });
     }
     
+    const contextActionBtn = document.getElementById("context-menu-action");
+    if (contextActionBtn) {
+        contextActionBtn.addEventListener("click", () => {
+            if (!contextMenuTarget) return;
+            const { type, target } = contextMenuTarget;
+            hideContextMenu();
+
+            if (type === "deleteBank") {
+                showCustomAlert(`DELETE BANK "${target.toUpperCase()}" AND ALL ITS PRESETS?`, () => {
+                    sendParamToCpp("deleteBank", target);
+                }, () => {});
+            } else if (type === "deletePreset") {
+                showCustomAlert(`DELETE PRESET "${target.toUpperCase()}"?`, () => {
+                    sendParamToCpp("deletePreset", JSON.stringify({ bank: state.currentBank, preset: target }));
+                }, () => {});
+            }
+        });
+    }
+
+    document.addEventListener("click", hideContextMenu);
+    
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
-            const alertModal = document.getElementById("custom-alert-modal");
-            if (alertModal && alertModal.classList.contains("active")) {
-                alertModal.classList.remove("active");
+            const menu = document.getElementById("custom-context-menu");
+            if (menu && menu.style.display === "block") {
+                hideContextMenu();
             } else {
-                closePresetModal();
+                const alertModal = document.getElementById("custom-alert-modal");
+                if (alertModal && alertModal.classList.contains("active")) {
+                    alertModal.classList.remove("active");
+                } else {
+                    closePresetModal();
+                }
             }
         }
     });

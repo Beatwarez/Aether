@@ -253,6 +253,11 @@ public:
                         juce::String bankName = args[1].toString();
                         webViewInstance->createBank (bankName);
                     }
+                    else if (paramName == "deleteBank")
+                    {
+                        juce::String bankName = args[1].toString();
+                        webViewInstance->deleteBank (bankName);
+                    }
                     else if (paramName == "refreshPresetManager")
                     {
                         webViewInstance->triggerPresetManagerUpdate();
@@ -601,6 +606,28 @@ public:
         processor.currentBank = bankName;
         processor.currentPreset = "Init";
         triggerPresetManagerUpdate();
+    }
+
+    void deleteBank (const juce::String& bankName)
+    {
+        if (bankName == "Factory Presets") return;
+
+        juce::File file = processor.getPresetsFolder().getChildFile (bankName + ".xml");
+        if (file.existsAsFile())
+        {
+            file.deleteFile();
+        }
+
+        if (processor.currentBank == bankName)
+        {
+            processor.currentBank = "Factory Presets";
+            processor.currentPreset = "Init";
+            loadPreset (processor.currentBank, processor.currentPreset);
+        }
+        else
+        {
+            triggerPresetManagerUpdate();
+        }
     }
 
 private:
