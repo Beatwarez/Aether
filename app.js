@@ -729,15 +729,33 @@ function renderPresetModalLists() {
             if (bank === state.currentBank) {
                 item.classList.add("active");
             }
-            item.textContent = bank.toUpperCase();
-            item.addEventListener("click", () => {
+            
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = bank.toUpperCase();
+            nameSpan.style.flex = "1";
+            nameSpan.addEventListener("click", () => {
                 sendParamToCpp("loadPreset", JSON.stringify({ bank: bank, preset: "" }));
             });
-            item.addEventListener("contextmenu", (e) => {
-                if (bank === "Factory Presets") return;
-                e.preventDefault();
-                showContextMenu(e.pageX, e.pageY, "deleteBank", bank);
-            });
+            item.appendChild(nameSpan);
+
+            // Actions container for bank delete
+            if (bank !== "Factory Presets") {
+                const actions = document.createElement("div");
+                actions.className = "preset-item-actions";
+                
+                const delBtn = document.createElement("button");
+                delBtn.className = "preset-action-btn delete";
+                delBtn.textContent = "×";
+                delBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    showCustomAlert(`DELETE BANK "${bank.toUpperCase()}" AND ALL ITS PRESETS?`, () => {
+                        sendParamToCpp("deleteBank", bank);
+                    }, () => {});
+                });
+                actions.appendChild(delBtn);
+                item.appendChild(actions);
+            }
+
             banksList.appendChild(item);
         });
     }
@@ -752,11 +770,6 @@ function renderPresetModalLists() {
             if (preset.name === state.currentPreset) {
                 item.classList.add("active");
             }
-            item.addEventListener("contextmenu", (e) => {
-                if (state.currentBank === "Factory Presets") return;
-                e.preventDefault();
-                showContextMenu(e.pageX, e.pageY, "deletePreset", preset.name);
-            });
             
             const nameSpan = document.createElement("span");
             nameSpan.textContent = preset.name.toUpperCase();
@@ -879,27 +892,7 @@ function showCustomAlert(message, onYes, onNo = null) {
     });
 }
 
-let contextMenuTarget = null;
-
-function showContextMenu(x, y, type, target) {
-    const menu = document.getElementById("custom-context-menu");
-    const actionEl = document.getElementById("context-menu-action");
-    if (!menu || !actionEl) return;
-
-    contextMenuTarget = { type, target };
-    actionEl.textContent = type === "deleteBank" ? "DELETE BANK" : "DELETE PRESET";
-
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-    menu.style.display = "block";
-}
-
-function hideContextMenu() {
-    const menu = document.getElementById("custom-context-menu");
-    if (menu) {
-        menu.style.display = "none";
-    }
-}
+// Context menu reverted
 
 function switchPresetRelative(offset) {
     if (!state.presets || state.presets.length === 0) return;
@@ -999,39 +992,13 @@ function initPresetEventListeners() {
         });
     }
     
-    const contextActionBtn = document.getElementById("context-menu-action");
-    if (contextActionBtn) {
-        contextActionBtn.addEventListener("click", () => {
-            if (!contextMenuTarget) return;
-            const { type, target } = contextMenuTarget;
-            hideContextMenu();
-
-            if (type === "deleteBank") {
-                showCustomAlert(`DELETE BANK "${target.toUpperCase()}" AND ALL ITS PRESETS?`, () => {
-                    sendParamToCpp("deleteBank", target);
-                }, () => {});
-            } else if (type === "deletePreset") {
-                showCustomAlert(`DELETE PRESET "${target.toUpperCase()}"?`, () => {
-                    sendParamToCpp("deletePreset", JSON.stringify({ bank: state.currentBank, preset: target }));
-                }, () => {});
-            }
-        });
-    }
-
-    document.addEventListener("click", hideContextMenu);
-    
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
-            const menu = document.getElementById("custom-context-menu");
-            if (menu && menu.style.display === "block") {
-                hideContextMenu();
+            const alertModal = document.getElementById("custom-alert-modal");
+            if (alertModal && alertModal.classList.contains("active")) {
+                alertModal.classList.remove("active");
             } else {
-                const alertModal = document.getElementById("custom-alert-modal");
-                if (alertModal && alertModal.classList.contains("active")) {
-                    alertModal.classList.remove("active");
-                } else {
-                    closePresetModal();
-                }
+                closePresetModal();
             }
         }
     });
