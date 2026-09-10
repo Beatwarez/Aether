@@ -82,7 +82,7 @@ public:
   std::atomic<bool> stopRequested{false};
   std::atomic<int> activityHits{0};
 
-  juce::String currentBank{ "Factory Presets" };
+  juce::String currentBank{ "" };
   juce::String currentPreset{ "Init" };
 
   juce::File getAppFolder();

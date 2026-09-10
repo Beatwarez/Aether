@@ -380,7 +380,7 @@ std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
 void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
   editSnapshot = rootXml.getIntAttribute("editSnapshot", 0);
   editSnapshot = juce::jlimit(0, 8, editSnapshot);
-  currentBank = rootXml.getStringAttribute("currentBank", "Factory Presets");
+  currentBank = rootXml.getStringAttribute("currentBank", "");
   currentPreset = rootXml.getStringAttribute("currentPreset", "Init");
 
   // 1. Read step snapshots
@@ -483,109 +483,7 @@ juce::File AetherAudioProcessor::getPreferencesFile() {
 }
 
 void AetherAudioProcessor::initFactoryPresets() {
-    juce::File factoryFile = getPresetsFolder().getChildFile("Factory Presets.wap2");
-    if (!factoryFile.existsAsFile()) {
-        juce::XmlElement root("AetherPresets");
-        
-        // 1. Init
-        auto* pInit = root.createNewChildElement("AetherState");
-        pInit->setAttribute("name", "Init");
-        pInit->setAttribute("editSnapshot", 0);
-        auto* pInitParams = pInit->createNewChildElement("Parameters");
-        pInitParams->setAttribute("activeSnapshot", 1);
-        pInitParams->setAttribute("enabled", 1);
-        pInitParams->setAttribute("delayTimeMs", 500.0);
-        pInitParams->setAttribute("syncDivision", 8); // 1/4
-        pInitParams->setAttribute("stepCount", 15);
-        pInitParams->setAttribute("killOnStop", 1);
-        pInitParams->setAttribute("killOnSwitch", 0);
-        
-        auto* pInitSnaps = pInit->createNewChildElement("SNAPSHOTS");
-        for (int s = 0; s < 9; ++s) {
-            auto* snapXml = pInitSnaps->createNewChildElement("SNAPSHOT");
-            snapXml->setAttribute("id", s);
-            snapXml->setAttribute("stepCount", 15);
-            snapXml->setAttribute("enabled", 1);
-            snapXml->setAttribute("delayTimeMs", 500.0);
-            snapXml->setAttribute("syncDivision", 8);
-            for (int i = 0; i < 15; ++i) {
-                auto* stepXml = snapXml->createNewChildElement("STEP");
-                stepXml->setAttribute("id", i);
-                stepXml->setAttribute("pitch", 0);
-                stepXml->setAttribute("velocity", (int)std::round(127 - (i * (126.0 / 14.0))));
-                stepXml->setAttribute("mod", 0);
-                stepXml->setAttribute("prob", 100);
-                stepXml->setAttribute("mute", 0);
-            }
-        }
-        
-        // 2. Dotted Chord
-        auto* pDotted = root.createNewChildElement("AetherState");
-        pDotted->setAttribute("name", "Dotted Chord");
-        pDotted->setAttribute("editSnapshot", 0);
-        auto* pDottedParams = pDotted->createNewChildElement("Parameters");
-        pDottedParams->setAttribute("activeSnapshot", 1);
-        pDottedParams->setAttribute("enabled", 1);
-        pDottedParams->setAttribute("delayTimeMs", 375.0);
-        pDottedParams->setAttribute("syncDivision", 10); // 1/8d
-        pDottedParams->setAttribute("stepCount", 15);
-        pDottedParams->setAttribute("killOnStop", 1);
-        pDottedParams->setAttribute("killOnSwitch", 1);
-        
-        auto* pDottedSnaps = pDotted->createNewChildElement("SNAPSHOTS");
-        for (int s = 0; s < 9; ++s) {
-            auto* snapXml = pDottedSnaps->createNewChildElement("SNAPSHOT");
-            snapXml->setAttribute("id", s);
-            snapXml->setAttribute("stepCount", 15);
-            snapXml->setAttribute("enabled", 1);
-            snapXml->setAttribute("delayTimeMs", 375.0);
-            snapXml->setAttribute("syncDivision", 10);
-            for (int i = 0; i < 15; ++i) {
-                auto* stepXml = snapXml->createNewChildElement("STEP");
-                stepXml->setAttribute("id", i);
-                int offsets[15] = { 0, 3, 7, 12, 15, 19, 24, 0, 3, 7, 12, 15, 19, 24, 0 };
-                stepXml->setAttribute("pitch", offsets[i]);
-                stepXml->setAttribute("velocity", 100);
-                stepXml->setAttribute("mod", 0);
-                stepXml->setAttribute("prob", i % 2 == 0 ? 100 : 70);
-                stepXml->setAttribute("mute", 0);
-            }
-        }
-        
-        // 3. Classic 8th
-        auto* pClassic = root.createNewChildElement("AetherState");
-        pClassic->setAttribute("name", "Classic 8th");
-        pClassic->setAttribute("editSnapshot", 0);
-        auto* pClassicParams = pClassic->createNewChildElement("Parameters");
-        pClassicParams->setAttribute("activeSnapshot", 1);
-        pClassicParams->setAttribute("enabled", 1);
-        pClassicParams->setAttribute("delayTimeMs", 250.0);
-        pClassicParams->setAttribute("syncDivision", 11); // 1/8
-        pClassicParams->setAttribute("stepCount", 15);
-        pClassicParams->setAttribute("killOnStop", 1);
-        pClassicParams->setAttribute("killOnSwitch", 0);
-        
-        auto* pClassicSnaps = pClassic->createNewChildElement("SNAPSHOTS");
-        for (int s = 0; s < 9; ++s) {
-            auto* snapXml = pClassicSnaps->createNewChildElement("SNAPSHOT");
-            snapXml->setAttribute("id", s);
-            snapXml->setAttribute("stepCount", 15);
-            snapXml->setAttribute("enabled", 1);
-            snapXml->setAttribute("delayTimeMs", 250.0);
-            snapXml->setAttribute("syncDivision", 11);
-            for (int i = 0; i < 15; ++i) {
-                auto* stepXml = snapXml->createNewChildElement("STEP");
-                stepXml->setAttribute("id", i);
-                stepXml->setAttribute("pitch", 0);
-                stepXml->setAttribute("velocity", 100);
-                stepXml->setAttribute("mod", 0);
-                stepXml->setAttribute("prob", 100);
-                stepXml->setAttribute("mute", 0);
-            }
-        }
-        
-        root.writeTo(factoryFile);
-    }
+    // Factory presets generation has been removed as per user request.
 }
 
 void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {

@@ -895,18 +895,10 @@ function showCustomAlert(message, onYes, onNo = null) {
 // Context menu reverted
 
 function switchPresetRelative(offset) {
-    if (!state.presets || state.presets.length === 0) return;
-    
-    let index = state.presets.findIndex(p => p.name === state.currentPreset);
-    if (index === -1) {
-        index = 0;
+    if (offset > 0) {
+        sendParamToCpp("loadNextPreset", 0);
     } else {
-        index = (index + offset + state.presets.length) % state.presets.length;
-    }
-    
-    const targetPreset = state.presets[index];
-    if (targetPreset) {
-        sendParamToCpp("loadPreset", JSON.stringify({ bank: state.currentBank, preset: targetPreset.name }));
+        sendParamToCpp("loadPrevPreset", 0);
     }
 }
 
@@ -984,7 +976,7 @@ function initPresetEventListeners() {
                 return;
             }
             let targetBank = state.currentBank;
-            if (targetBank === "Factory Presets") {
+            if (!targetBank || targetBank === "Factory Presets") {
                 targetBank = "User Presets";
             }
             sendParamToCpp("savePreset", JSON.stringify({ bank: targetBank, preset: presetName }));

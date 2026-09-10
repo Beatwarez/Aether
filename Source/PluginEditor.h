@@ -218,6 +218,14 @@ public:
                             webViewInstance->loadPreset (bank, preset);
                         }
                     }
+                    else if (paramName == "loadNextPreset")
+                    {
+                        webViewInstance->loadNextPreset();
+                    }
+                    else if (paramName == "loadPrevPreset")
+                    {
+                        webViewInstance->loadPrevPreset();
+                    }
                     else if (paramName == "savePreset")
                     {
                         auto jsonVar = juce::JSON::parse (args[1].toString());
@@ -525,8 +533,67 @@ public:
         }
     }
 
-    void savePreset (const juce::String& bank, const juce::String& preset)
+    void loadNextPreset()
     {
+        cyclePreset (1);
+    }
+
+    void loadPrevPreset()
+    {
+        cyclePreset (-1);
+    }
+
+    void cyclePreset (int offset)
+    {
+        auto presetsFolder = processor.getPresetsFolder();
+        auto files = presetsFolder.findChildFiles (juce::File::findFiles, false, "*.wap2");
+        if (files.isEmpty()) return;
+
+        files.sort();
+
+        struct FlatPreset { juce::String bank; juce::String preset; };
+        juce::Array<FlatPreset> allPresets;
+        int currentIndex = -1;
+
+        for (const auto& f : files)
+        {
+            juce::String bankName = f.getFileNameWithoutExtension();
+            juce::XmlDocument doc (f);
+            if (auto root = doc.getDocumentElement())
+            {
+                for (auto* child : root->getChildIterator())
+                {
+                    if (child->hasAttribute ("name"))
+                    {
+                        juce::String presetName = child->getStringAttribute ("name");
+                        allPresets.add ({ bankName, presetName });
+                        if (bankName == processor.currentBank && presetName == processor.currentPreset)
+                        {
+                            currentIndex = allPresets.size() - 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (allPresets.isEmpty()) return;
+
+        if (currentIndex == -1)
+            currentIndex = 0;
+        else
+        {
+            currentIndex += offset;
+            if (currentIndex >= allPresets.size()) currentIndex = 0;
+            else if (currentIndex < 0) currentIndex = allPresets.size() - 1;
+        }
+
+        auto target = allPresets[currentIndex];
+        loadPreset (target.bank, target.preset);
+    }
+
+    void savePreset (const juce::String& bankIn, const juce::String& preset)
+    {
+        juce::String bank = bankIn.isEmpty() || bankIn == "Factory Presets" ? "User Presets" : bankIn;
         juce::File file = processor.getPresetsFolder().getChildFile (bank + ".wap2");
         juce::XmlDocument doc (file);
         std::unique_ptr<juce::XmlElement> root = doc.getDocumentElement();
@@ -643,9 +710,21 @@ public:
 
         if (processor.currentBank == bankName)
         {
-            processor.currentBank = "Factory Presets";
+            processor.currentBank = "";
             processor.currentPreset = "Init";
-            loadPreset (processor.currentBank, processor.currentPreset);
+            
+            auto presetsFolder = processor.getPresetsFolder();
+            auto files = presetsFolder.findChildFiles (juce::File::findFiles, false, "*.wap2");
+            if (!files.isEmpty())
+            {
+                files.sort();
+                juce::String firstBank = files[0].getFileNameWithoutExtension();
+                loadPreset (firstBank, "");
+            }
+            else
+            {
+                triggerPresetManagerUpdate();
+            }
         }
         else
         {

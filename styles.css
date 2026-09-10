@@ -1098,3 +1098,11 @@ body {
     background-color: rgba(0, 255, 65, 0.2);
     color: var(--crt-green);
 }
+
+.gear-btn {
+    transform: scale(1.6);
+}
+
+.dropdown-menu {
+    z-index: 9999 !important;
+}
