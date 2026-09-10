@@ -1,0 +1,91 @@
+name: Build Windows VST3
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows VST3
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JUCE
+        run: |
+          git clone --branch 8.0.13 --depth 1 https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Update Jucer Module Paths for Windows CI
+        shell: bash
+        run: |
+          python -c '
+          import os
+          workspace = os.environ.get("GITHUB_WORKSPACE", "")
+          modules_path = os.path.join(workspace, "JUCE", "modules").replace("\\", "/")
+          
+          with open("Aether.jucer", "r") as f:
+              text = f.read()
+          text = text.replace("../../../../JUCE/modules", modules_path)
+          text = text.replace("useGlobalPath=\"1\"", "useGlobalPath=\"0\"")
+          with open("Aether.jucer", "w") as f:
+              f.write(text)
+          '
+
+      - name: Download Projucer CLI (Windows)
+        shell: bash
+        run: |
+          curl -L https://github.com/juce-framework/JUCE/releases/download/8.0.13/juce-8.0.13-windows.zip -o juce.zip
+          mkdir -p temp_projucer
+          unzip -q juce.zip -d temp_projucer
+          mv temp_projucer/JUCE/Projucer.exe ./Projucer.exe
+          rm -rf temp_projucer juce.zip
+
+      - name: Generate Visual Studio Solution
+        run: |
+          ./Projucer.exe --resave Aether.jucer
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Solution (x64 Release)
+        run: |
+          msbuild Builds/VisualStudio2022/Aether.sln /p:Configuration=Release /p:Platform=x64
+
+      - name: Sign Plugin Binaries
+        shell: powershell
+        env:
+          WIN_CERT_BASE64: ${{ secrets.WAP_WINDOWS_CERTIFICATE_P12_BASE64 || secrets.WINDOWS_CERTIFICATE_P12_BASE64 }}
+          WIN_CERT_PASS: ${{ secrets.WAP_WINDOWS_CERTIFICATE_PASSWORD || secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ($env:WIN_CERT_BASE64) {
+            Write-Host "Decoding Windows code signing certificate..."
+            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\win_cert.p12", [Convert]::FromBase64String($env:WIN_CERT_BASE64.Trim()))
+            
+            $vst3Bin = Get-ChildItem -Path "Builds\VisualStudio2022" -Recurse -Filter "Aether.vst3" -Directory | Select-Object -First 1 -ExpandProperty FullName
+            if (-not $vst3Bin) {
+                $vst3Bin = Get-ChildItem -Path "Builds\VisualStudio2022" -Recurse -Filter "Aether.vst3" -File | Select-Object -First 1 -ExpandProperty FullName
+            }
+            
+            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1 -ExpandProperty FullName
+            if ($signtool) {
+              try {
+                if ($vst3Bin -and (Test-Path $vst3Bin)) {
+                  Write-Host "Signing VST3 binary: $vst3Bin..."
+                  & $signtool sign /f "$env:RUNNER_TEMP\win_cert.p12" /p "$env:WIN_CERT_PASS" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "$vst3Bin"
+                }
+              } catch {
+                Write-Host "Signing warning: $_"
+              }
+            }
+            Remove-Item "$env:RUNNER_TEMP\win_cert.p12" -Force -ErrorAction SilentlyContinue
+          } else {
+            Write-Host "No Windows signing certificate provided, skipping code signing."
+          }
+
+      - name: Upload Windows VST3 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aether-Windows-VST3
+          path: Builds/VisualStudio2022/x64/Release/VST3/Aether.vst3
+          retention-days: 7
