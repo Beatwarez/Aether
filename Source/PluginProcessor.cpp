@@ -59,7 +59,7 @@ AetherAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterBool>(
       "endSwitch", "End Switch", false));
   layout.add(std::make_unique<juce::AudioParameterInt>(
-      "syncDivision", "Sync Division", 0, 18, 13));
+      "syncDivision", "Sync Division", 0, 18, 14));
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "activeSnapshot", "Active Snapshot", 1, 9, 1));
   return layout;
@@ -205,7 +205,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   if (lastActiveSnap != activeSnap) {
     if (lastActiveSnap != -1 && pKillOnSwitch) {
-      killActiveMidiNotes(-1); // Kill all queues so the new snapshot doesn't leak previously buffered notes
+      killActiveMidiNotes(lastActiveSnap);
     }
     lastActiveSnap = activeSnap;
   }
@@ -467,11 +467,14 @@ void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
     if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch")))
       *p = (paramsXml->getIntAttribute("killOnSwitch", 1) != 0);
 
-    if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("endSwitch")))
-      *p = (paramsXml->getIntAttribute("endSwitch", 0) != 0);
+    if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("endSwitch"))) {
+      bool val = (paramsXml->getIntAttribute("endSwitch", 0) != 0);
+      *p = val;
+      endSwitchEnabled.store(val);
+    }
 
     if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision")))
-      *p = paramsXml->getIntAttribute("syncDivision", 13);
+      *p = paramsXml->getIntAttribute("syncDivision", 14);
 
     if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot")))
       *p = paramsXml->getIntAttribute("activeSnapshot", 1);
