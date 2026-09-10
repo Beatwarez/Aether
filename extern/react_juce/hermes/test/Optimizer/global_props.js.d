@@ -1,2 +1,0 @@
-function print () {}
-var process;

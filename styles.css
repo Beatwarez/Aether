@@ -1053,7 +1053,6 @@ body {
     font-size: 1.2rem;
     cursor: pointer;
     vertical-align: middle;
-    margin-left: 8px;
     transition: color 0.2s, text-shadow 0.2s, transform 0.2s;
     outline: none;
 }
@@ -1066,15 +1065,14 @@ body {
 
 .dropdown-menu {
     position: absolute;
-    top: 35px;
-    left: 100px;
+    top: 0;
+    left: 100%;
+    margin-left: 10px;
     background-color: var(--bg-panel);
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.8);
     z-index: 1000;
     width: 80px;
-    max-height: 200px;
-    overflow-y: auto;
     border-radius: 4px;
 }
 
