@@ -65,22 +65,25 @@ void AetherAudioProcessor::prepareToPlay(double sampleRate,
                                          int samplesPerBlock) {
   lastSampleRate = (sampleRate > 0) ? sampleRate : 44100.0;
   totalSamplesProcessed = 0;
-  midiQueue.clear();
-  activeNotes.clear();
-  noteTracker.clear();
+  
+  for (int i = 0; i < 9; ++i) {
+    midiQueues[i].clear();
+    activeNotes[i].clear();
+    noteTrackers[i].clear();
+    
+    // Initialize delay times based on the snapshot's initial parameters
+    float currentMs = snapshots[i].delayTimeMs;
+    smoothedDelaySamples[i].reset(lastSampleRate, 0.1);
+    smoothedDelaySamples[i].setCurrentAndTargetValue(currentMs * 0.001f * (float)lastSampleRate);
+  }
+  
   wasPlaying = false;
-
-  float currentMs = *apvts.getRawParameterValue("delayTimeMs");
-  smoothedDelaySamples.reset(lastSampleRate, 0.1);
-  smoothedDelaySamples.setCurrentAndTargetValue(currentMs * 0.001f *
-                                                (float)lastSampleRate);
 }
 
-double AetherAudioProcessor::getSyncTimeInMs() {
-  auto* syncP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision"));
-  int syncIdx = syncP ? syncP->get() : 0;
+double AetherAudioProcessor::getSyncTimeInMs(int snapshotIndex) {
+  int syncIdx = snapshots[snapshotIndex].syncDivision;
   if (syncIdx == 0)
-    return (double)*apvts.getRawParameterValue("delayTimeMs");
+    return (double)snapshots[snapshotIndex].delayTimeMs;
 
   if (auto *ph = getPlayHead()) {
     if (auto pos = ph->getPosition()) {
@@ -97,7 +100,7 @@ double AetherAudioProcessor::getSyncTimeInMs() {
       return baseTime * multiplier;
     }
   }
-  return (double)*apvts.getRawParameterValue("delayTimeMs");
+  return (double)snapshots[snapshotIndex].delayTimeMs;
 }
 
 void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
@@ -127,24 +130,43 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   bool pKill = killP ? killP->get() : true;
   auto* enP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("enabled"));
   bool pEnabled = enP ? enP->get() : true;
-  auto* syncP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision"));
-  int syncIdx = syncP ? syncP->get() : 0;
   auto* actP = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot"));
   int activeSnap = (actP ? actP->get() : 1) - 1;
   activeSnap = juce::jlimit(0, 8, activeSnap);
-  int pStepCount = snapshots[activeSnap].stepCount;
+  auto* kswP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch"));
+  bool pKillOnSwitch = kswP ? kswP->get() : false;
 
-  auto killActiveMidiNotes = [&]() {
-    for (const auto& note : activeNotes) {
-      midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), 0);
+  auto killActiveMidiNotes = [&](int snapIndex = -1) {
+    if (snapIndex == -1) {
+      // Kill all
+      for (int s = 0; s < 9; ++s) {
+        for (const auto& note : activeNotes[s]) {
+          midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), 0);
+        }
+        activeNotes[s].clear();
+        midiQueues[s].clear();
+        noteTrackers[s].clear();
+      }
+      for (int ch = 1; ch <= 16; ++ch) {
+        midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
+      }
+    } else {
+      // Kill specific snapshot
+      for (const auto& note : activeNotes[snapIndex]) {
+        midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), 0);
+      }
+      activeNotes[snapIndex].clear();
+      midiQueues[snapIndex].clear();
+      noteTrackers[snapIndex].clear();
     }
-    for (int ch = 1; ch <= 16; ++ch) {
-      midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
-    }
-    activeNotes.clear();
-    midiQueue.clear();
-    noteTracker.clear();
   };
+
+  if (lastActiveSnap != activeSnap) {
+    if (lastActiveSnap != -1 && pKillOnSwitch) {
+      killActiveMidiNotes(lastActiveSnap);
+    }
+    lastActiveSnap = activeSnap;
+  }
 
   // Handle STOP button: immediately clear all loop state
   if (stopRequested.exchange(false)) {
@@ -157,125 +179,150 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   wasPlaying = isPlaying;
 
   if (!pEnabled || (pKill && !isPlaying)) {
-    if (!activeNotes.empty() || !midiQueue.empty()) {
+    bool hasNotes = false;
+    for (int s = 0; s < 9; ++s) {
+      if (!activeNotes[s].empty() || !midiQueues[s].empty()) hasNotes = true;
+    }
+    if (hasNotes) {
       killActiveMidiNotes();
     }
     totalSamplesProcessed += numSamples;
     return;
   }
 
-  double targetMs = (syncIdx == 0)
-                        ? (double)*apvts.getRawParameterValue("delayTimeMs")
-                        : getSyncTimeInMs();
-  targetMs = juce::jmax(1.0, targetMs);
-  smoothedDelaySamples.setTargetValue(
-      (float)(targetMs * 0.001 * lastSampleRate));
+  // Update target delays for all 9 snapshots
+  std::array<float, 9> currentDelayVals;
+  for (int s = 0; s < 9; ++s) {
+    double targetMs = (snapshots[s].syncDivision == 0)
+                          ? (double)snapshots[s].delayTimeMs
+                          : getSyncTimeInMs(s);
+    targetMs = juce::jmax(1.0, targetMs);
+    smoothedDelaySamples[s].setTargetValue((float)(targetMs * 0.001 * lastSampleRate));
+    currentDelayVals[s] = smoothedDelaySamples[s].getCurrentValue();
+    for (int sample = 0; sample < numSamples; ++sample) {
+      smoothedDelaySamples[s].getNextValue();
+    }
+  }
 
-  std::vector<QueuedEvent> additions;
+  std::array<std::vector<QueuedEvent>, 9> additions;
 
   for (const auto metadata : midiMessages) {
     auto msg = metadata.getMessage();
     int localPos = metadata.samplePosition;
     int noteKey = (msg.getChannel() << 7) | msg.getNoteNumber();
+    long long origin = totalSamplesProcessed + localPos;
 
     if (msg.isNoteOn()) {
       activityHits++;
-      std::array<int, 15> cap;
-      for (int i = 0; i < 15; ++i)
-        cap[i] = snapshots[activeSnap].steps[i].pitchOffset;
+      for (int s = 0; s < 9; ++s) {
+        if (!snapshots[s].enabled) continue;
+        
+        std::array<int, 15> cap;
+        for (int i = 0; i < 15; ++i)
+          cap[i] = snapshots[s].steps[i].pitchOffset;
 
-      NoteState ns;
-      ns.channel = msg.getChannel();
-      ns.noteNumber = msg.getNoteNumber();
-      ns.velocity = msg.getVelocity();
-      ns.currentStepIndex = 0;
-      ns.directionForward = true;
-      ns.lastPlayedNote = -1;
-      ns.pitchCaps = cap;
-      noteTracker[noteKey] = ns;
+        NoteState ns;
+        ns.channel = msg.getChannel();
+        ns.noteNumber = msg.getNoteNumber();
+        ns.velocity = msg.getVelocity();
+        ns.currentStepIndex = 0;
+        ns.directionForward = true;
+        ns.lastPlayedNote = -1;
+        ns.pitchCaps = cap;
+        noteTrackers[s][noteKey] = ns;
 
-      long long origin = totalSamplesProcessed + localPos;
-
-      // Classic: schedule all steps simultaneously
-      for (int i = 0; i < pStepCount; ++i) {
-        if (snapshots[activeSnap].steps[i].muted || random.nextInt(100) >= snapshots[activeSnap].steps[i].probability)
-          continue;
-        int targetNote =
-            juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
-        additions.push_back(
-            {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
-             i + 1, i, noteKey});
-        auto dOn = msg;
-        dOn.setNoteNumber(targetNote);
-        dOn.setVelocity(snapshots[activeSnap].steps[i].velocity / 127.0f);
-        additions.push_back({dOn, origin + 1, i + 1, i, noteKey});
-        additions.push_back({juce::MidiMessage::controllerEvent(
-                                 msg.getChannel(), 1, snapshots[activeSnap].steps[i].modwheel),
-                              origin, i + 1, i, noteKey});
+        int pStepCount = snapshots[s].stepCount;
+        for (int i = 0; i < pStepCount; ++i) {
+          if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
+            continue;
+          int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
+          additions[s].push_back(
+              {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
+               i + 1, i, noteKey, s});
+          auto dOn = msg;
+          dOn.setNoteNumber(targetNote);
+          dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
+          additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
+          additions[s].push_back({juce::MidiMessage::controllerEvent(
+                                   msg.getChannel(), 1, snapshots[s].steps[i].modwheel),
+                                origin, i + 1, i, noteKey, s});
+        }
       }
     } else if (msg.isNoteOff()) {
-      if (noteTracker.count(noteKey)) {
-        // Classic mode: schedule note-offs for all taps, then clean up
-        auto &ns = noteTracker[noteKey];
-        long long origin = totalSamplesProcessed + localPos;
-        for (int i = 0; i < pStepCount; ++i) {
-          if (snapshots[activeSnap].steps[i].muted)
-            continue;
-          auto dOff = msg;
-          dOff.setNoteNumber(juce::jlimit<int>(
-              0, 127, msg.getNoteNumber() + ns.pitchCaps[i]));
-          additions.push_back({dOff, origin, i + 1, i, noteKey});
+      for (int s = 0; s < 9; ++s) {
+        if (noteTrackers[s].count(noteKey)) {
+          auto &ns = noteTrackers[s][noteKey];
+          int pStepCount = snapshots[s].stepCount;
+          for (int i = 0; i < pStepCount; ++i) {
+            if (snapshots[s].steps[i].muted)
+              continue;
+            auto dOff = msg;
+            dOff.setNoteNumber(juce::jlimit<int>(0, 127, msg.getNoteNumber() + ns.pitchCaps[i]));
+            additions[s].push_back({dOff, origin, i + 1, i, noteKey, s});
+          }
+          noteTrackers[s].erase(noteKey);
         }
-        noteTracker.erase(noteKey);
       }
     }
   }
-  float delayVal = smoothedDelaySamples.getCurrentValue();
-  for (int sample = 0; sample < numSamples; ++sample) {
-    smoothedDelaySamples.getNextValue();
-  }
 
-  for (auto it = midiQueue.begin(); it != midiQueue.end();) {
-    long long eventTargetTime =
-        it->triggerSample + (long long)(delayVal * it->tapIndex);
-    if (eventTargetTime < totalSamplesProcessed + numSamples) {
-      int sampleOffset = (int)(eventTargetTime - totalSamplesProcessed);
-      sampleOffset = juce::jlimit(0, numSamples - 1, sampleOffset);
+  // Process all 9 queues
+  for (int s = 0; s < 9; ++s) {
+    float delayVal = currentDelayVals[s];
+    for (auto it = midiQueues[s].begin(); it != midiQueues[s].end();) {
+      long long eventTargetTime = it->triggerSample + (long long)(delayVal * it->tapIndex);
+      
+      if (eventTargetTime < totalSamplesProcessed + numSamples) {
+        int sampleOffset = (int)(eventTargetTime - totalSamplesProcessed);
+        sampleOffset = juce::jlimit(0, numSamples - 1, sampleOffset);
 
-      midiMessages.addEvent(it->message, sampleOffset);
-
-      if (it->message.isNoteOn()) {
-        activityHits++;
-        int ch = it->message.getChannel();
-        int note = it->message.getNoteNumber();
-        if (std::find(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)) == activeNotes.end()) {
-          activeNotes.push_back({ch, note});
+        if (s == activeSnap) {
+          midiMessages.addEvent(it->message, sampleOffset);
+          if (it->message.isNoteOn()) {
+            activityHits++;
+            int ch = it->message.getChannel();
+            int note = it->message.getNoteNumber();
+            if (std::find(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)) == activeNotes[s].end()) {
+              activeNotes[s].push_back({ch, note});
+            }
+          } else if (it->message.isNoteOff()) {
+            int ch = it->message.getChannel();
+            int note = it->message.getNoteNumber();
+            activeNotes[s].erase(std::remove(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)), activeNotes[s].end());
+          }
+        } else {
+          // If not active snapshot, we only emit Note Offs for notes that were ACTUALLY turned on by this snapshot in the past
+          if (it->message.isNoteOff()) {
+            int ch = it->message.getChannel();
+            int note = it->message.getNoteNumber();
+            auto activeIt = std::find(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note));
+            if (activeIt != activeNotes[s].end()) {
+              midiMessages.addEvent(it->message, sampleOffset);
+              activeNotes[s].erase(activeIt);
+            }
+          }
         }
-      } else if (it->message.isNoteOff()) {
-        int ch = it->message.getChannel();
-        int note = it->message.getNoteNumber();
-        activeNotes.erase(std::remove(activeNotes.begin(), activeNotes.end(), std::make_pair(ch, note)), activeNotes.end());
-      }
 
-      it = midiQueue.erase(it);
-    } else {
-      ++it;
+        it = midiQueues[s].erase(it);
+      } else {
+        ++it;
+      }
+    }
+
+    for (auto &e : additions[s])
+      midiQueues[s].push_back(e);
+
+    if (midiQueues[s].size() > 500000) {
+      auto cutoff = totalSamplesProcessed - (long long)(lastSampleRate * 15.0);
+      midiQueues[s].erase(std::remove_if(midiQueues[s].begin(), midiQueues[s].end(),
+                                     [cutoff](const QueuedEvent &e) {
+                                       return e.triggerSample < cutoff;
+                                     }),
+                      midiQueues[s].end());
     }
   }
-
-  // Safely add all newly scheduled events to the main queue
-  for (auto &e : additions)
-    midiQueue.push_back(e);
-
+  
   totalSamplesProcessed += numSamples;
-  if (midiQueue.size() > 500000) {
-    auto cutoff = totalSamplesProcessed - (long long)(lastSampleRate * 15.0);
-    midiQueue.erase(std::remove_if(midiQueue.begin(), midiQueue.end(),
-                                   [cutoff](const QueuedEvent &e) {
-                                     return e.triggerSample < cutoff;
-                                   }),
-                    midiQueue.end());
-  }
 }
 
 std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {

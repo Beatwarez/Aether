@@ -37,6 +37,7 @@ struct QueuedEvent {
   int tapIndex;
   int stepIndex;
   int noteKey;
+  int snapshotIndex;
 };
 
 class AetherAudioProcessor : public juce::AudioProcessor,
@@ -73,6 +74,7 @@ public:
   juce::AudioProcessorValueTreeState apvts;
   std::array<Snapshot, 9> snapshots;
   int editSnapshot = 0;
+  int lastActiveSnap = -1;
   Snapshot copiedSnapshot;
   bool hasCopiedSnapshot = false;
   bool isUpdatingSnapshotParameters = false;
@@ -88,6 +90,7 @@ public:
   juce::File getSettingsFolder();
   juce::File getPreferencesFile();
   void initFactoryPresets();
+  double getSyncTimeInMs(int snapshotIndex);
 
   std::unique_ptr<juce::XmlElement> createStateXml();
   void loadStateFromXml(const juce::XmlElement& rootXml);
@@ -95,11 +98,11 @@ public:
 private:
   double lastSampleRate = 44100.0;
   long long totalSamplesProcessed = 0;
-  std::vector<QueuedEvent> midiQueue;
-  std::vector<std::pair<int, int>> activeNotes;
-  std::map<int, NoteState> noteTracker;
+  std::array<std::vector<QueuedEvent>, 9> midiQueues;
+  std::array<std::vector<std::pair<int, int>>, 9> activeNotes;
+  std::array<std::map<int, NoteState>, 9> noteTrackers;
 
-  juce::LinearSmoothedValue<float> smoothedDelaySamples;
+  std::array<juce::SmoothedValue<float>, 9> smoothedDelaySamples;
 
   juce::Random random;
   bool wasPlaying = false;
