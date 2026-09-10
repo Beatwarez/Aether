@@ -1130,3 +1130,11 @@ body {
     user-select: none;
 }
 
+@keyframes flash {
+    0% { background-color: var(--crt-green); color: var(--bg-main); }
+    100% { background-color: var(--bg-panel); color: var(--text-muted); }
+}
+.flash {
+    animation: flash 0.15s ease-out;
+}
+

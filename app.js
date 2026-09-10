@@ -562,11 +562,17 @@ document.querySelectorAll(".snapshot-edit-btn").forEach(btn => {
 document.getElementById("copy-snap-btn").onclick = () => {
     if (!state.isEnabled) return;
     sendParamToCpp("copyActiveSnapshot", 0);
+    const btn = document.getElementById("copy-snap-btn");
+    btn.classList.add("flash");
+    setTimeout(() => btn.classList.remove("flash"), 150);
 };
 
 document.getElementById("paste-snap-btn").onclick = () => {
     if (!state.isEnabled) return;
     sendParamToCpp("pasteActiveSnapshot", 0);
+    const btn = document.getElementById("paste-snap-btn");
+    btn.classList.add("flash");
+    setTimeout(() => btn.classList.remove("flash"), 150);
 };
 
 // Drag MS mouse registration

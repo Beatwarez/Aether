@@ -78,7 +78,6 @@ public:
   Snapshot copiedSnapshot;
   bool hasCopiedSnapshot = false;
   bool isUpdatingSnapshotParameters{false};
-  std::atomic<bool> endSwitchEnabled{false};
   std::atomic<int> actualActiveSnap{0};
   double lastPpqPosition{-1.0};
   std::atomic<bool> isInitializing{ false };

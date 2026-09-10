@@ -139,7 +139,10 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   int targetActiveSnap = (actP ? actP->get() : 1) - 1;
   targetActiveSnap = juce::jlimit(0, 8, targetActiveSnap);
   
-  if (!endSwitchEnabled.load()) {
+  auto* esP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("endSwitch"));
+  bool pEndSwitch = esP ? esP->get() : false;
+    
+  if (!pEndSwitch) {
     actualActiveSnap.store(targetActiveSnap);
     lastPpqPosition = -1.0;
   } else {
@@ -470,7 +473,6 @@ void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
     if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("endSwitch"))) {
       bool val = (paramsXml->getIntAttribute("endSwitch", 0) != 0);
       *p = val;
-      endSwitchEnabled.store(val);
     }
 
     if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("syncDivision")))
@@ -590,8 +592,6 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
     // Kill on switch is now handled safely inside processBlock()
     
     loadSnapshotParameters (newActiveSnap);
-  } else if (parameterID == "endSwitch") {
-    endSwitchEnabled = (newValue > 0.5f);
   } else {
     if (parameterID == "enabled")
         snapshots[activeSnap].enabled = (newValue > 0.5f);
