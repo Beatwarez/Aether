@@ -18,7 +18,7 @@ struct Snapshot {
   int stepCount = 15;
   bool enabled = true;
   float delayTimeMs = 500.0f;
-  int syncDivision = 0;
+  int syncDivision = 13;
 };
 
 struct NoteState {

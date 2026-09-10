@@ -1071,7 +1071,7 @@ body {
     top: 0;
     left: 100%;
     margin-left: 10px;
-    background-color: var(--bg-panel);
+    background-color: var(--bg-main);
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.8);
     z-index: 1000;
