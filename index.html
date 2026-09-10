@@ -6,19 +6,6 @@
     <title>AETHER // Polyphonic MIDI Delay (Preview)</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        #build-version-label {
-            position: absolute;
-            bottom: 6px;
-            right: 10px;
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 9px;
-            color: rgba(0, 255, 65, 0.4);
-            letter-spacing: 0.04em;
-            pointer-events: none;
-            z-index: 9999;
-            user-select: none;
-        }
-
         /* Power Switch - Canvas Position */
         .power-control-group {
             position: absolute;
@@ -304,10 +291,9 @@
                 <div class="visualizer-grid" id="visualizer-grid">
                     <!-- Javascript will populate 30 cells (15 cols x 2 rows) -->
                 </div>
+                <div id="build-version-label"></div>
             </div>
         </main>
-
-        <div id="build-version-label"></div>
 
         <!-- Preset Manager Modal Overlay -->
         <div id="preset-modal" class="preset-modal-overlay">

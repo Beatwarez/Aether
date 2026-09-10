@@ -1118,3 +1118,15 @@ body {
 .blinking {
     animation: blink 0.5s infinite;
 }
+
+#build-version-label {
+    text-align: center;
+    color: #26ff5c;
+    font-size: 10px;
+    font-family: var(--font-monospace);
+    margin-top: 5px;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    user-select: none;
+}
+
