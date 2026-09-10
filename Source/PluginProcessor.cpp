@@ -63,6 +63,7 @@ AetherAudioProcessor::createParameterLayout() {
 
 void AetherAudioProcessor::prepareToPlay(double sampleRate,
                                          int samplesPerBlock) {
+  juce::ignoreUnused(samplesPerBlock);
   lastSampleRate = (sampleRate > 0) ? sampleRate : 44100.0;
   totalSamplesProcessed = 0;
   
@@ -638,13 +639,7 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
     newActiveSnap = juce::jlimit (0, 8, newActiveSnap);
     editSnapshot = newActiveSnap;
     
-    // Kill on switch logic
-    auto* kswP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch"));
-    if (kswP && kswP->get()) {
-      midiQueue.clear();
-      activeNotes.clear();
-      noteTracker.clear();
-    }
+    // Kill on switch is now handled safely inside processBlock()
     
     loadSnapshotParameters (newActiveSnap);
   } else {
