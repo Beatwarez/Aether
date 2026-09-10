@@ -20,7 +20,9 @@ let state = {
     stepCount: 15,
     killOnStop: true,
     killOnSwitch: false,
+    endSwitch: false,
     activeSnapshot: 0,
+    actualActiveSnapshot: 0,
     editSnapshot: 0,
     steps: Array.from({ length: 15 }, (_, i) => ({
         pitch: 0,
@@ -339,9 +341,11 @@ function updateUIFromState() {
     document.getElementById("ms-value-text").textContent = Math.round(state.delayTimeMs);
     document.getElementById("kill-btn").classList.toggle("active", state.killOnStop);
     
-    // 5b. Update kill-on-switch button
+    // 5b. Update kill-on-switch and end-switch buttons
     const kosBtn = document.getElementById("kill-on-switch-btn");
     if (kosBtn) kosBtn.classList.toggle("active", state.killOnSwitch);
+    const esBtn = document.getElementById("end-switch-btn");
+    if (esBtn) esBtn.classList.toggle("active", state.endSwitch);
 
     document.querySelectorAll(".matrix-btn").forEach(btn => {
         btn.classList.toggle("active", !isMs && btn.getAttribute("data-div") === state.syncDivision);
@@ -358,7 +362,14 @@ function updateUIFromState() {
 
     // 6. Snapshot Presets Buttons
     document.querySelectorAll(".snapshot-btn").forEach((btn, i) => {
-        btn.classList.toggle("active", i === state.activeSnapshot);
+        const isActive = (i === state.activeSnapshot);
+        btn.classList.toggle("active", isActive);
+        
+        if (state.endSwitch && state.actualActiveSnapshot !== state.activeSnapshot && isActive) {
+            btn.classList.add("blinking");
+        } else {
+            btn.classList.remove("blinking");
+        }
     });
     document.querySelectorAll(".snapshot-edit-btn").forEach((btn, i) => {
         btn.classList.toggle("active", i === state.editSnapshot);
@@ -518,6 +529,15 @@ document.getElementById("kill-on-switch-btn").onclick = () => {
     sendParamToCpp("killOnSwitch", state.killOnSwitch ? 1.0 : 0.0);
 };
 
+const endSwitchBtn = document.getElementById("end-switch-btn");
+if (endSwitchBtn) {
+    endSwitchBtn.onclick = () => {
+        state.endSwitch = !state.endSwitch;
+        endSwitchBtn.classList.toggle("active", state.endSwitch);
+        sendParamToCpp("endSwitch", state.endSwitch ? 1.0 : 0.0);
+    };
+}
+
 document.querySelectorAll(".snapshot-btn").forEach(btn => {
     btn.onclick = () => {
         if (!state.isEnabled) return;
@@ -651,7 +671,8 @@ const aetherUI = {
             'delayTimeMs': 'delayTimeMs',
             'stepCount': 'stepCount',
             'killOnStop': 'killOnStop',
-            'killOnSwitch': 'killOnSwitch'
+            'killOnSwitch': 'killOnSwitch',
+            'endSwitch': 'endSwitch'
         };
         const mappedKey = keyMap[param];
         if (mappedKey) {
@@ -715,6 +736,11 @@ const aetherUI = {
         } catch (e) {
             console.error("Error parsing preset manager data:", e);
         }
+    },
+    
+    setActualActiveSnapshot: (snap) => {
+        state.actualActiveSnapshot = snap;
+        updateUIFromState();
     }
 };
 

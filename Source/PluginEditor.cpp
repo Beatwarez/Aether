@@ -173,6 +173,28 @@ void AetherAudioProcessorEditor::timerCallback()
             webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('killOnSwitch', " + juce::String (kswBool ? "true" : "false") + ");");
         }
     }
+    // endSwitch (Global param — read from APVTS)
+    {
+        auto* esP = dynamic_cast<juce::AudioParameterBool*>(audioProcessor.apvts.getParameter("endSwitch"));
+        bool esBool = esP ? esP->get() : false;
+        float val = esBool ? 1.0f : 0.0f;
+        if (std::abs (val - webView.localParams[7]) > 0.001f)
+        {
+            webView.localParams[7] = val;
+            AetherWebView::logToFile ("timer pushing: endSwitch = " + juce::String (val));
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.updateParamFromCpp('endSwitch', " + juce::String (esBool ? "true" : "false") + ");");
+        }
+    }
+    // actualActiveSnapshot (from processor atomic)
+    {
+        int actVal = audioProcessor.actualActiveSnap.load();
+        float val = (float)actVal;
+        if (std::abs (val - webView.localParams[8]) > 0.001f)
+        {
+            webView.localParams[8] = val;
+            webView.evaluateJavascript ("if (window.aetherUI) window.aetherUI.setActualActiveSnapshot(" + juce::String (actVal) + ");");
+        }
+    }
 
     // 3. Sync sequence steps from C++ snapshots to JS
     bool stepsChanged = false;

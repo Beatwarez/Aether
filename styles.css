@@ -772,11 +772,14 @@ body {
     top: 40px;
     width: 350px;
     height: 48px;
+    background: transparent;
+    border: none;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    z-index: 100;
+    align-items: center;
+    border-radius: 8px;
+    padding: 0 10px;
+    z-index: 10000;
     font-family: 'IBM Plex Mono', monospace;
 }
 
@@ -1105,4 +1108,13 @@ body {
 
 .dropdown-menu {
     z-index: 9999 !important;
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+.blinking {
+    animation: blink 0.5s infinite;
 }
