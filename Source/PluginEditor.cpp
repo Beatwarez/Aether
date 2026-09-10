@@ -12,6 +12,10 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor (AetherAudioProcessor& p)
     
     // Add WebView UI
     addAndMakeVisible (webView);
+    
+    // Add Resize Handle on top of WebView
+    addAndMakeVisible (resizer);
+    resizer.setAlwaysOnTop (true);
 
     // Point the web view to the virtual origin managed by the C++ ResourceProvider
     webView.goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
@@ -43,6 +47,10 @@ void AetherAudioProcessorEditor::paint (juce::Graphics& g)
 void AetherAudioProcessorEditor::resized()
 {
     webView.setBounds (getLocalBounds());
+    resizer.setBounds (getWidth() - 16, getHeight() - 16, 16, 16);
+    
+    m_SizeChanged = true;
+    m_SizeChangedCounter = 30; // 1 second at 30Hz
 }
 
 // ==========================================================================
@@ -50,6 +58,17 @@ void AetherAudioProcessorEditor::resized()
 // ==========================================================================
 void AetherAudioProcessorEditor::timerCallback()
 {
+    // Debounce saveWindowSize so it only saves after you stop dragging
+    if (m_SizeChanged && m_SizeChangedCounter > 0)
+    {
+        m_SizeChangedCounter--;
+        if (m_SizeChangedCounter == 0)
+        {
+            m_SizeChanged = false;
+            saveWindowSize();
+        }
+    }
+
     // 1. Detect edit snapshot changes FIRST, before the param push loop.
     int editSnap = audioProcessor.editSnapshot;
 

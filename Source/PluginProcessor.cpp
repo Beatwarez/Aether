@@ -420,15 +420,14 @@ juce::File AetherAudioProcessor::getAppFolder() {
 }
 
 juce::File AetherAudioProcessor::getPresetsFolder() {
-    juce::File dir = getAppFolder().getChildFile("Presets");
+    juce::File desktop = juce::File::getSpecialLocation(juce::File::userDesktopDirectory);
+    juce::File dir = desktop.getChildFile("aether_presets");
     if (!dir.exists()) dir.createDirectory();
     return dir;
 }
 
 juce::File AetherAudioProcessor::getSettingsFolder() {
-    juce::File dir = getAppFolder().getChildFile("Settings");
-    if (!dir.exists()) dir.createDirectory();
-    return dir;
+    return getPresetsFolder();
 }
 
 juce::File AetherAudioProcessor::getPreferencesFile() {
@@ -436,7 +435,7 @@ juce::File AetherAudioProcessor::getPreferencesFile() {
 }
 
 void AetherAudioProcessor::initFactoryPresets() {
-    juce::File factoryFile = getPresetsFolder().getChildFile("Factory Presets.xml");
+    juce::File factoryFile = getPresetsFolder().getChildFile("Factory Presets.wap2");
     if (!factoryFile.existsAsFile()) {
         juce::XmlElement root("AetherPresets");
         

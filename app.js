@@ -1040,4 +1040,39 @@ function buildVisualizer() {
 }
 buildVisualizer();
 
+// ==========================================================================
+// Size Menu Logic
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const gearBtn = document.getElementById('size-gear-btn');
+    const sizeMenu = document.getElementById('size-dropdown-menu');
 
+    if (gearBtn && sizeMenu) {
+        gearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sizeMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+            if (!sizeMenu.classList.contains('hidden')) {
+                sizeMenu.classList.add('hidden');
+            }
+        });
+
+        sizeMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        const sizeItems = sizeMenu.querySelectorAll('.dropdown-item');
+        sizeItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const sizeStr = item.getAttribute('data-size');
+                const percent = parseFloat(sizeStr);
+                if (!isNaN(percent)) {
+                    sendParamToCpp('setSize', percent);
+                }
+                sizeMenu.classList.add('hidden');
+            });
+        });
+    }
+});

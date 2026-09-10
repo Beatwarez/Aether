@@ -262,6 +262,16 @@ public:
                     {
                         webViewInstance->triggerPresetManagerUpdate();
                     }
+                    else if (paramName == "setSize")
+                    {
+                        float percent = (float)args[1];
+                        int w = juce::roundToInt (1040.0f * (percent / 100.0f));
+                        int h = juce::roundToInt (1280.0f * (percent / 100.0f));
+                        juce::MessageManager::callAsync ([&p, w, h]() {
+                            if (auto* editor = p.getActiveEditor())
+                                editor->setSize (w, h);
+                        });
+                    }
                     else if (paramName == "copyActiveSnapshot")
                     {
                         int editSnap = p.editSnapshot;
@@ -281,6 +291,14 @@ public:
                                 webViewInstance->localParams[i] = -1.0f;
                             webViewInstance->localStepCount = -1;
                             webViewInstance->localActiveSnapshot = -1;
+
+                            int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                            activeSnap = juce::jlimit (0, 8, activeSnap);
+                            if (editSnap == activeSnap)
+                            {
+                                p.loadSnapshotParameters (activeSnap);
+                            }
+                            
                             logToFile ("pasteActiveSnapshot: copied state pasted into snapshot " + juce::String (editSnap + 1) + ".");
                         }
                         else
@@ -339,26 +357,31 @@ public:
                             p.snapshots[editSnap].delayTimeMs = paramValue;
                         else if (paramName == "syncDivision")
                             p.snapshots[editSnap].syncDivision = (int)paramValue;
-                        // killOnStop is global now, just APVTS update
+                        // killOnStop and killOnSwitch are global, other params are per-snapshot
+                        int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
+                        activeSnap = juce::jlimit (0, 8, activeSnap);
 
-                        if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
+                        if (editSnap == activeSnap || paramName == "killOnStop" || paramName == "killOnSwitch")
                         {
-                            rawVal->store (paramValue);
-                        }
-                        if (auto* param = p.apvts.getParameter (paramName))
-                        {
-                            param->beginChangeGesture();
-                            if (auto* intParam = dynamic_cast<juce::AudioParameterInt*> (param))
-                                *intParam = (int)paramValue;
-                            else if (auto* boolParam = dynamic_cast<juce::AudioParameterBool*> (param))
-                                *boolParam = (paramValue > 0.5f);
-                            else if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*> (param))
-                                *floatParam = paramValue;
-                            else if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
-                                rangedParam->setValueNotifyingHost (rangedParam->getNormalisableRange().convertTo0to1 (paramValue));
-                            else
-                                param->setValueNotifyingHost (paramValue);
-                            param->endChangeGesture();
+                            if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
+                            {
+                                rawVal->store (paramValue);
+                            }
+                            if (auto* param = p.apvts.getParameter (paramName))
+                            {
+                                param->beginChangeGesture();
+                                if (auto* intParam = dynamic_cast<juce::AudioParameterInt*> (param))
+                                    *intParam = (int)paramValue;
+                                else if (auto* boolParam = dynamic_cast<juce::AudioParameterBool*> (param))
+                                    *boolParam = (paramValue > 0.5f);
+                                else if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*> (param))
+                                    *floatParam = paramValue;
+                                else if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*> (param))
+                                    rangedParam->setValueNotifyingHost (rangedParam->getNormalisableRange().convertTo0to1 (paramValue));
+                                else
+                                    param->setValueNotifyingHost (paramValue);
+                                param->endChangeGesture();
+                            }
                         }
                     }
                 }
@@ -420,7 +443,7 @@ public:
         juce::Array<juce::var> presetsArray;
 
         auto presetsFolder = processor.getPresetsFolder();
-        auto files = presetsFolder.findChildFiles (juce::File::findFiles, false, "*.xml");
+        auto files = presetsFolder.findChildFiles (juce::File::findFiles, false, "*.wap2");
         
         for (const auto& f : files)
         {
@@ -466,7 +489,7 @@ public:
             triggerPresetManagerUpdate();
             return;
         }
-        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".wap2");
         juce::XmlDocument doc (file);
         if (auto root = doc.getDocumentElement())
         {
@@ -504,7 +527,7 @@ public:
 
     void savePreset (const juce::String& bank, const juce::String& preset)
     {
-        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".wap2");
         juce::XmlDocument doc (file);
         std::unique_ptr<juce::XmlElement> root = doc.getDocumentElement();
         if (root == nullptr || root->getTagName() != "AetherPresets")
@@ -543,7 +566,7 @@ public:
 
     void deletePreset (const juce::String& bank, const juce::String& preset)
     {
-        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".wap2");
         if (!file.existsAsFile()) return;
 
         juce::XmlDocument doc (file);
@@ -574,7 +597,7 @@ public:
 
     void togglePresetFavorite (const juce::String& bank, const juce::String& preset)
     {
-        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".xml");
+        juce::File file = processor.getPresetsFolder().getChildFile (bank + ".wap2");
         if (!file.existsAsFile()) return;
 
         juce::XmlDocument doc (file);
@@ -597,7 +620,7 @@ public:
 
     void createBank (const juce::String& bankName)
     {
-        juce::File file = processor.getPresetsFolder().getChildFile (bankName + ".xml");
+        juce::File file = processor.getPresetsFolder().getChildFile (bankName + ".wap2");
         if (!file.exists())
         {
             juce::XmlElement root ("AetherPresets");
@@ -612,7 +635,7 @@ public:
     {
         if (bankName == "Factory Presets") return;
 
-        juce::File file = processor.getPresetsFolder().getChildFile (bankName + ".xml");
+        juce::File file = processor.getPresetsFolder().getChildFile (bankName + ".wap2");
         if (file.existsAsFile())
         {
             file.deleteFile();
@@ -657,6 +680,10 @@ private:
 
     // Helper to serialize all 15 steps to JSON
     juce::String getStepsJson();
+
+    juce::ResizableCornerComponent resizer { this, getConstrainer() };
+    bool m_SizeChanged = false;
+    int m_SizeChangedCounter = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AetherAudioProcessorEditor)
 };
