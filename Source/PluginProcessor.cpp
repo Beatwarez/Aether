@@ -9,7 +9,7 @@ AetherAudioProcessor::AetherAudioProcessor()
     snapshots[s].stepCount = 15;
     snapshots[s].enabled = true;
     snapshots[s].delayTimeMs = 500.0f;
-    snapshots[s].syncDivision = 0;
+    snapshots[s].syncDivision = 14;
     for (int i = 0; i < 15; ++i) {
       snapshots[s].steps[i].velocity = (int)(127 - (i * (126.0 / 14.0)));
       snapshots[s].steps[i].modwheel = 0;
