@@ -26,7 +26,7 @@ jobs:
           
           with open("Aether.jucer", "r") as f:
               text = f.read()
-          text = text.replace("../../../../JUCE/modules", modules_path)
+          text = text.replace("C:/JUCE/modules", modules_path)
           text = text.replace("useGlobalPath=\"1\"", "useGlobalPath=\"0\"")
           with open("Aether.jucer", "w") as f:
               f.write(text)
