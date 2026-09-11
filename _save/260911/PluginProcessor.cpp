@@ -232,18 +232,6 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   }
   wasPlaying = isPlaying;
 
-  if (!pEnabled || (pKill && !isPlaying)) {
-    bool hasNotes = false;
-    for (int s = 0; s < 9; ++s) {
-      if (!activeNotes[s].empty() || !midiQueues[s].empty()) hasNotes = true;
-    }
-    if (hasNotes) {
-      killActiveMidiNotes();
-    }
-    totalSamplesProcessed += numSamples;
-    return;
-  }
-
   // Update target delays for all 9 snapshots
   std::array<float, 9> currentDelayVals;
   for (int s = 0; s < 9; ++s) {
