@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = '0.0.11';
+const BUILD_VERSION = '0.0.12';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -159,6 +159,39 @@ function buildLanes() {
                 <span class="lane-title">${config.label}</span>
             </div>
         `;
+        
+        if (config.prop === 'modwheel') {
+            const slewContainer = document.createElement("div");
+            slewContainer.className = "slew-container";
+            
+            const slewLabel = document.createElement("span");
+            slewLabel.className = "slew-label";
+            slewLabel.textContent = "SLEW:";
+            
+            const slewSlider = document.createElement("input");
+            slewSlider.type = "range";
+            slewSlider.className = "slew-slider";
+            slewSlider.min = "0";
+            slewSlider.max = "100";
+            slewSlider.value = Math.round((state.modwheelSlew || 0) * 100);
+            
+            const slewValLabel = document.createElement("span");
+            slewValLabel.className = "slew-value";
+            slewValLabel.textContent = `${slewSlider.value}%`;
+            
+            slewSlider.oninput = (e) => {
+                const val = parseInt(e.target.value);
+                slewValLabel.textContent = `${val}%`;
+                state.modwheelSlew = val / 100.0;
+                sendParamToCpp("modwheelSlew", state.modwheelSlew);
+            };
+            
+            slewContainer.appendChild(slewLabel);
+            slewContainer.appendChild(slewSlider);
+            slewContainer.appendChild(slewValLabel);
+            
+            header.querySelector(".lane-title-group").appendChild(slewContainer);
+        }
 
         // Register action buttons click
         header.querySelector(".r-btn").onclick = () => {

@@ -286,25 +286,49 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         ns.pitchCaps = cap;
         noteTrackers[s][noteKey] = ns;
 
-          int pStepCount = snapshots[s].stepCount;
-          for (int i = 0; i < pStepCount; ++i) {
-            if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
-              continue;
-            int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
-            additions[s].push_back(
-                {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
-                 i + 1, i, noteKey, s});
-            auto dOn = msg;
-            dOn.setNoteNumber(targetNote);
-            dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
-            additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
-            
-            int targetMod = snapshots[s].steps[i].modwheel;
-            additions[s].push_back({juce::MidiMessage::controllerEvent(
-                                   msg.getChannel(), 1, targetMod),
-                                  origin, i + 1, i, noteKey, s});
+        int pStepCount = snapshots[s].stepCount;
+        float samplesPerStep = currentDelayVals[s];
+        for (int i = 0; i < pStepCount; ++i) {
+          if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
+            continue;
+          int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
+          
+          auto dOn = msg;
+          dOn.setNoteNumber(targetNote);
+          dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
+          additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
+          
+          int targetMod = snapshots[s].steps[i].modwheel;
+          float slewParam = snapshots[s].modwheelSlew;
+          int prevMod = (i == 0) ? targetMod : snapshots[s].steps[i - 1].modwheel;
+          
+          if (slewParam > 0.0f && i > 0 && prevMod != targetMod) {
+              long long slewSamples = (long long)(samplesPerStep * slewParam * 2.0f);
+              int ccInterval = (int)(getSampleRate() * 0.007);
+              if (ccInterval < 100) ccInterval = 100;
+              int numSlewEvents = (int)(slewSamples / ccInterval);
+              
+              if (numSlewEvents > 0) {
+                  for (int k = 0; k <= numSlewEvents; ++k) {
+                      float fraction = (float)k / (float)numSlewEvents;
+                      int currentMod = prevMod + (int)((targetMod - prevMod) * fraction);
+                      long long ccOrigin = origin - slewSamples + (long long)(fraction * slewSamples);
+                      additions[s].push_back({juce::MidiMessage::controllerEvent(
+                             msg.getChannel(), 1, currentMod),
+                            ccOrigin, i + 1, i, noteKey, s});
+                  }
+              } else {
+                  additions[s].push_back({juce::MidiMessage::controllerEvent(
+                                 msg.getChannel(), 1, targetMod),
+                                origin, i + 1, i, noteKey, s});
+              }
+          } else {
+              additions[s].push_back({juce::MidiMessage::controllerEvent(
+                                     msg.getChannel(), 1, targetMod),
+                                    origin, i + 1, i, noteKey, s});
           }
         }
+      }
     } else if (msg.isNoteOff()) {
       for (int s = 0; s < 9; ++s) {
         if (noteTrackers[s].count(noteKey)) {
