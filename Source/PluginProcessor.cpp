@@ -256,6 +256,9 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   std::array<std::vector<QueuedEvent>, 9> additions;
 
+  juce::MidiBuffer filteredMessages;
+  int currentPercent = lastEmittedPercent.load();
+
   for (const auto metadata : midiMessages) {
     auto msg = metadata.getMessage();
     int localPos = metadata.samplePosition;
@@ -264,6 +267,11 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
     if (msg.isController() && msg.getControllerNumber() == 1) {
         lastBaseModwheel = msg.getControllerValue();
+        int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * currentPercent) / 100.0f);
+        finalVal = juce::jlimit(0, 127, finalVal);
+        filteredMessages.addEvent(juce::MidiMessage::controllerEvent(msg.getChannel(), 1, finalVal), localPos);
+    } else {
+        filteredMessages.addEvent(msg, localPos);
     }
 
     if (msg.isNoteOn()) {
@@ -301,9 +309,9 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
           
           int targetMod = snapshots[s].steps[i].modwheel;
           float slewParam = snapshots[s].modwheelSlew;
-          int prevMod = (i == 0) ? targetMod : snapshots[s].steps[i - 1].modwheel;
+          int prevMod = (i == 0) ? lastEmittedPercent.load() : snapshots[s].steps[i - 1].modwheel;
           
-          if (slewParam > 0.0f && i > 0 && prevMod != targetMod) {
+          if (slewParam > 0.0f && prevMod != targetMod) {
               long long slewSamples = (long long)(samplesPerStep * slewParam);
               int ccInterval = (int)(getSampleRate() * 0.015);
               if (ccInterval < 100) ccInterval = 100;
@@ -348,6 +356,8 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     }
   }
 
+  midiMessages = filteredMessages;
+
   // Process all 9 queues
   for (int s = 0; s < 9; ++s) {
     float delayVal = currentDelayVals[s];
@@ -362,6 +372,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
             auto outMsg = it->message;
             if (outMsg.isController() && outMsg.getControllerNumber() == 1) {
                 int percent = outMsg.getControllerValue();
+                lastEmittedPercent.store(percent);
                 int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * percent) / 100.0f);
                 finalVal = juce::jlimit(0, 127, finalVal);
                 outMsg = juce::MidiMessage::controllerEvent(outMsg.getChannel(), 1, finalVal);

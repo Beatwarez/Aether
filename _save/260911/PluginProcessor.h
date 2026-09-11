@@ -85,6 +85,7 @@ public:
   std::atomic<bool> stopRequested{false};
   std::atomic<int> activityHits{0};
   int lastBaseModwheel = 0;
+  std::atomic<int> lastEmittedPercent{0};
 
   juce::String currentBank{ "" };
   juce::String currentPreset{ "Init" };

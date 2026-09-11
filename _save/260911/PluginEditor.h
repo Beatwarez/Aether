@@ -369,6 +369,8 @@ public:
                             p.snapshots[editSnap].delayTimeMs = paramValue;
                         else if (paramName == "syncDivision")
                             p.snapshots[editSnap].syncDivision = (int)paramValue;
+                        else if (paramName == "modwheelSlew")
+                            p.snapshots[editSnap].modwheelSlew = paramValue;
                         // killOnStop, killOnSwitch, and endSwitch are global, other params are per-snapshot
                         int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
                         activeSnap = juce::jlimit (0, 8, activeSnap);
