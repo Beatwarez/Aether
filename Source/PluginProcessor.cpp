@@ -356,15 +356,13 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                   targetModwheelPercent.store(newPercent);
                   lastMidiChannel = outMsg.getChannel();
                   
-                  if (snapshots[activeSnap].modwheelSlew <= 0.001f) {
-                      currentModwheelPercentFloat = (float)newPercent;
-                      if (newPercent != lastEmittedPercent.load()) {
-                          lastEmittedPercent.store(newPercent);
-                          int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * newPercent) / 100.0f);
-                          finalVal = juce::jlimit(0, 127, finalVal);
-                          int ccOffset = juce::jlimit(0, numSamples - 1, sampleOffset - 1);
-                          midiMessages.addEvent(juce::MidiMessage::controllerEvent(lastMidiChannel, 1, finalVal), ccOffset);
-                      }
+                  currentModwheelPercentFloat = (float)newPercent;
+                  if (newPercent != lastEmittedPercent.load()) {
+                      lastEmittedPercent.store(newPercent);
+                      int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * newPercent) / 100.0f);
+                      finalVal = juce::jlimit(0, 127, finalVal);
+                      int ccOffset = juce::jlimit(0, numSamples - 1, sampleOffset - 1);
+                      midiMessages.addEvent(juce::MidiMessage::controllerEvent(lastMidiChannel, 1, finalVal), ccOffset);
                   }
               } else {
                   midiMessages.addEvent(outMsg, sampleOffset);
@@ -413,40 +411,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     }
   }
   
-  // Real-Time Modwheel Smoother
-  int targetPct = targetModwheelPercent.load();
-  float slewParam = snapshots[activeSnap].modwheelSlew;
-  
-  if (slewParam <= 0.001f) {
-      currentModwheelPercentFloat = (float)targetPct;
-  } else {
-      float delayVal = currentDelayVals[activeSnap];
-      long long slewSamples = (long long)(delayVal * slewParam * 2.0f);
-      if (slewSamples < 1) slewSamples = 1;
-      
-      float maxDeltaPerSample = 100.0f / (float)slewSamples;
-      float deltaForBlock = maxDeltaPerSample * numSamples;
-      
-      if (currentModwheelPercentFloat < targetPct) {
-          currentModwheelPercentFloat += deltaForBlock;
-          if (currentModwheelPercentFloat > targetPct)
-              currentModwheelPercentFloat = (float)targetPct;
-      } else if (currentModwheelPercentFloat > targetPct) {
-          currentModwheelPercentFloat -= deltaForBlock;
-          if (currentModwheelPercentFloat < targetPct)
-              currentModwheelPercentFloat = (float)targetPct;
-      }
-  }
-  
-  int currentPercentInt = (int)std::round(currentModwheelPercentFloat);
-  if (currentPercentInt != lastEmittedPercent.load()) {
-      lastEmittedPercent.store(currentPercentInt);
-      int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * currentPercentInt) / 100.0f);
-      finalVal = juce::jlimit(0, 127, finalVal);
-      midiMessages.addEvent(juce::MidiMessage::controllerEvent(lastMidiChannel, 1, finalVal), numSamples - 1);
-  }
-
-  totalSamplesProcessed += numSamples;
+    totalSamplesProcessed += numSamples;
 }
 
 std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
