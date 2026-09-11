@@ -1138,3 +1138,57 @@ body {
     animation: flash 0.15s ease-out;
 }
 
+/* Custom Slew Slider */
+.slew-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 20px;
+    padding: 2px 8px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.slew-label, .slew-value {
+    font-family: var(--font-monospace);
+    font-size: 11px;
+    color: var(--crt-green);
+    letter-spacing: 0.05em;
+    user-select: none;
+}
+
+.slew-value {
+    width: 30px;
+    text-align: right;
+}
+
+.slew-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 80px;
+    height: 4px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    outline: none;
+    cursor: ew-resize;
+}
+
+.slew-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--crt-green);
+    border-radius: 50%;
+    cursor: ew-resize;
+    box-shadow: 0 0 5px rgba(38, 255, 92, 0.5);
+    transition: transform 0.1s ease;
+}
+
+.slew-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 10px rgba(38, 255, 92, 0.8);
+}
+

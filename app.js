@@ -21,6 +21,7 @@ let state = {
     killOnStop: true,
     killOnSwitch: true,
     endSwitch: false,
+    modwheelSlew: 0.0,
     activeSnapshot: 0,
     actualActiveSnapshot: 0,
     editSnapshot: 0,
@@ -136,8 +137,8 @@ function buildLanes() {
     const lanesConfig = [
         { label: "Pitch Shift", prop: "pitch", min: -24, max: 24, isBipolar: true },
         { label: "Velocity", prop: "velocity", min: 1, max: 127 },
-        { label: "Modwheel", prop: "modwheel", min: 0, max: 127 },
-        { label: "Probability", prop: "probability", min: 0, max: 100 },
+        { label: "Modwheel", prop: "modwheel", min: 0, max: 100, unit: "%" },
+        { label: "Probability", prop: "probability", min: 0, max: 100, unit: "%" },
         { label: "Mute", prop: "muted", min: 0, max: 1 }
     ];
 
@@ -158,6 +159,39 @@ function buildLanes() {
                 <span class="lane-title">${config.label}</span>
             </div>
         `;
+        
+        if (config.prop === 'modwheel') {
+            const slewContainer = document.createElement("div");
+            slewContainer.className = "slew-container";
+            
+            const slewLabel = document.createElement("span");
+            slewLabel.className = "slew-label";
+            slewLabel.textContent = "SLEW:";
+            
+            const slewSlider = document.createElement("input");
+            slewSlider.type = "range";
+            slewSlider.className = "slew-slider";
+            slewSlider.min = "0";
+            slewSlider.max = "100";
+            slewSlider.value = Math.round((state.modwheelSlew || 0) * 100);
+            
+            const slewValLabel = document.createElement("span");
+            slewValLabel.className = "slew-value";
+            slewValLabel.textContent = `${slewSlider.value}%`;
+            
+            slewSlider.oninput = (e) => {
+                const val = parseInt(e.target.value);
+                slewValLabel.textContent = `${val}%`;
+                state.modwheelSlew = val / 100.0;
+                sendParamToCpp("modwheelSlew", state.modwheelSlew);
+            };
+            
+            slewContainer.appendChild(slewLabel);
+            slewContainer.appendChild(slewSlider);
+            slewContainer.appendChild(slewValLabel);
+            
+            header.querySelector(".lane-title-group").appendChild(slewContainer);
+        }
 
         // Register action buttons click
         header.querySelector(".r-btn").onclick = () => {
@@ -275,11 +309,9 @@ function updateStepUI(property, index) {
     } else {
         const fill = col.querySelector(".step-bar-fill, .step-bar-bipolar");
         const label = col.querySelector(".step-value-label");
-
-        // Format label text
         if (label) {
             let labelStr = val.toString();
-            if (property === 'probability') labelStr = `${val}%`;
+            if (property === 'probability' || property === 'modwheel') labelStr = `${val}%`;
             else if (property === 'pitch' && val > 0) labelStr = `+${val}`;
             label.textContent = labelStr;
         }
@@ -374,6 +406,14 @@ function updateUIFromState() {
     document.querySelectorAll(".snapshot-edit-btn").forEach((btn, i) => {
         btn.classList.toggle("active", i === state.editSnapshot);
     });
+    
+    const slewSlider = document.querySelector(".slew-slider");
+    const slewValLabel = document.querySelector(".slew-value");
+    if (slewSlider && slewValLabel) {
+        const percent = Math.round((state.modwheelSlew || 0) * 100);
+        slewSlider.value = percent;
+        slewValLabel.textContent = `${percent}%`;
+    }
 }
 
 // Calculate and apply step value changes from drag/mouse movement
@@ -678,7 +718,8 @@ const aetherUI = {
             'stepCount': 'stepCount',
             'killOnStop': 'killOnStop',
             'killOnSwitch': 'killOnSwitch',
-            'endSwitch': 'endSwitch'
+            'endSwitch': 'endSwitch',
+            'modwheelSlew': 'modwheelSlew'
         };
         const mappedKey = keyMap[param];
         if (mappedKey) {
