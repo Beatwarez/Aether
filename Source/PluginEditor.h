@@ -58,6 +58,9 @@ public:
         auto* kswP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("killOnSwitch"));
         stateObj->setProperty ("killOnSwitch", kswP ? kswP->get() : false);
         
+        auto* esP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("endSwitch"));
+        stateObj->setProperty ("endSwitch", esP ? esP->get() : false);
+        
         stateObj->setProperty ("activeSnapshot", activeSnap);
         stateObj->setProperty ("editSnapshot", editSnap);
         
@@ -366,11 +369,11 @@ public:
                             p.snapshots[editSnap].delayTimeMs = paramValue;
                         else if (paramName == "syncDivision")
                             p.snapshots[editSnap].syncDivision = (int)paramValue;
-                        // killOnStop and killOnSwitch are global, other params are per-snapshot
+                        // killOnStop, killOnSwitch, and endSwitch are global, other params are per-snapshot
                         int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
                         activeSnap = juce::jlimit (0, 8, activeSnap);
 
-                        if (editSnap == activeSnap || paramName == "killOnStop" || paramName == "killOnSwitch")
+                        if (editSnap == activeSnap || paramName == "killOnStop" || paramName == "killOnSwitch" || paramName == "endSwitch")
                         {
                             if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
                             {
