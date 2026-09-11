@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = '0.0.12';
+const BUILD_VERSION = '0.0.13';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -173,16 +173,18 @@ function buildLanes() {
             slewSlider.className = "slew-slider";
             slewSlider.min = "0";
             slewSlider.max = "100";
-            slewSlider.value = Math.round((state.modwheelSlew || 0) * 100);
+            const currentMs = state.modwheelSlew || 0;
+            slewSlider.value = Math.round(Math.sqrt(currentMs / 500.0) * 100.0);
             
             const slewValLabel = document.createElement("span");
             slewValLabel.className = "slew-value";
-            slewValLabel.textContent = `${slewSlider.value}%`;
+            slewValLabel.textContent = `${Math.round(currentMs)}ms`;
             
             slewSlider.oninput = (e) => {
-                const val = parseInt(e.target.value);
-                slewValLabel.textContent = `${val}%`;
-                state.modwheelSlew = val / 100.0;
+                const sliderVal = parseInt(e.target.value);
+                const msValue = Math.round(Math.pow(sliderVal / 100.0, 2) * 500.0);
+                slewValLabel.textContent = `${msValue}ms`;
+                state.modwheelSlew = msValue;
                 sendParamToCpp("modwheelSlew", state.modwheelSlew);
             };
             
@@ -410,9 +412,9 @@ function updateUIFromState() {
     const slewSlider = document.querySelector(".slew-slider");
     const slewValLabel = document.querySelector(".slew-value");
     if (slewSlider && slewValLabel) {
-        const percent = Math.round((state.modwheelSlew || 0) * 100);
-        slewSlider.value = percent;
-        slewValLabel.textContent = `${percent}%`;
+        const currentMs = state.modwheelSlew || 0;
+        slewSlider.value = Math.round(Math.sqrt(currentMs / 500.0) * 100.0);
+        slewValLabel.textContent = `${Math.round(currentMs)}ms`;
     }
 }
 

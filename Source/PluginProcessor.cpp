@@ -49,10 +49,10 @@ AetherAudioProcessor::~AetherAudioProcessor() {
 juce::AudioProcessorValueTreeState::ParameterLayout
 AetherAudioProcessor::createParameterLayout() {
   juce::AudioProcessorValueTreeState::ParameterLayout layout;
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "delayTimeMs", "Delay Time (ms)", 1.0f, 2000.0f, 500.0f));
   layout.add(std::make_unique<juce::AudioParameterBool>(
       "enabled", "Enabled", true));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "delayTimeMs", "Delay Time", 10.0f, 2000.0f, 500.0f));
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "stepCount", "Step Count", 1, 15, 15));
   layout.add(std::make_unique<juce::AudioParameterBool>(
@@ -66,7 +66,7 @@ AetherAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "activeSnapshot", "Active Snapshot", 1, 9, 1));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "modwheelSlew", "Modwheel Slew", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+      "modwheelSlew", "Modwheel Slew", juce::NormalisableRange<float>(0.0f, 500.0f, 1.0f, 0.5f), 0.0f));
   return layout;
 }
 
@@ -303,7 +303,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
           int prevMod = (i == 0) ? targetMod : snapshots[s].steps[i - 1].modwheel;
           
           if (slewParam > 0.0f && i > 0 && prevMod != targetMod) {
-              long long slewSamples = (long long)(samplesPerStep * slewParam * 2.0f);
+              long long slewSamples = (long long)(slewParam * (getSampleRate() / 1000.0f));
               int ccInterval = (int)(getSampleRate() * 0.007);
               if (ccInterval < 100) ccInterval = 100;
               int numSlewEvents = (int)(slewSamples / ccInterval);
