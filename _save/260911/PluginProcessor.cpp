@@ -154,19 +154,25 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     if (auto* playhead = getPlayHead()) {
       if (auto posInfo = playhead->getPosition()) {
         if (posInfo->getPpqPosition().hasValue() && posInfo->getTimeSignature().hasValue()) {
-          double ppq = *posInfo->getPpqPosition();
-          auto sig = *posInfo->getTimeSignature();
-          double barLength = (4.0 * sig.numerator) / sig.denominator;
-          
-          if (lastPpqPosition >= 0.0) {
-            double prevBarPhase = std::fmod(lastPpqPosition, barLength);
-            double currBarPhase = std::fmod(ppq, barLength);
-            // Check for loop wrap or bar boundary crossing
-            if (currBarPhase < prevBarPhase || (ppq - lastPpqPosition) >= barLength) {
+          if (!posInfo->getIsPlaying()) {
+            actualActiveSnap.store(targetActiveSnap);
+            lastPpqPosition = -1.0;
+          } else {
+            double ppq = *posInfo->getPpqPosition();
+            auto sig = *posInfo->getTimeSignature();
+            double barLength = (4.0 * sig.numerator) / sig.denominator;
+            
+            if (lastPpqPosition >= 0.0) {
+              double prevBarPhase = std::fmod(lastPpqPosition, barLength);
+              double currBarPhase = std::fmod(ppq, barLength);
+              if (currBarPhase < prevBarPhase || (ppq - lastPpqPosition) >= barLength) {
+                actualActiveSnap.store(targetActiveSnap);
+              }
+            } else {
               actualActiveSnap.store(targetActiveSnap);
             }
+            lastPpqPosition = ppq;
           }
-          lastPpqPosition = ppq;
         } else {
           actualActiveSnap.store(targetActiveSnap);
           lastPpqPosition = -1.0;
