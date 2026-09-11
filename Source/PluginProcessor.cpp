@@ -346,8 +346,20 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
           if (s == activeSnap) {
               auto outMsg = it->message;
               if (outMsg.isController() && outMsg.getControllerNumber() == 1) {
-                  targetModwheelPercent.store(outMsg.getControllerValue());
+                  int newPercent = outMsg.getControllerValue();
+                  targetModwheelPercent.store(newPercent);
                   lastMidiChannel = outMsg.getChannel();
+                  
+                  if (snapshots[activeSnap].modwheelSlew <= 0.001f) {
+                      currentModwheelPercentFloat = (float)newPercent;
+                      if (newPercent != lastEmittedPercent.load()) {
+                          lastEmittedPercent.store(newPercent);
+                          int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * newPercent) / 100.0f);
+                          finalVal = juce::jlimit(0, 127, finalVal);
+                          int ccOffset = juce::jlimit(0, numSamples - 1, sampleOffset - 1);
+                          midiMessages.addEvent(juce::MidiMessage::controllerEvent(lastMidiChannel, 1, finalVal), ccOffset);
+                      }
+                  }
               } else {
                   midiMessages.addEvent(outMsg, sampleOffset);
                   if (outMsg.isNoteOn()) {
