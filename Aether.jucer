@@ -3,7 +3,7 @@
 <JUCERPROJECT id="aYFEa4" name="Aether" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" pluginFormats="buildVST3,buildAU"
               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn"
-              cppLanguageStandard="20">
+              cppLanguageStandard="20" version="0.0.3">
   <MAINGROUP id="P9Mvn2" name="Aether">
     <GROUP id="{931AEA58-428E-7D17-C327-E0ADF9846885}" name="Source">
       <FILE id="PQ7HlY" name="PluginProcessor.cpp" compile="1" resource="0"
