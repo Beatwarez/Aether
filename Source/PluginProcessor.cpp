@@ -10,6 +10,7 @@ AetherAudioProcessor::AetherAudioProcessor()
     snapshots[s].enabled = true;
     snapshots[s].delayTimeMs = 500.0f;
     snapshots[s].syncDivision = 14;
+    snapshots[s].modwheelSlew = 0.0f;
     for (int i = 0; i < 15; ++i) {
       snapshots[s].steps[i].velocity = (int)(127 - (i * (126.0 / 14.0)));
       snapshots[s].steps[i].modwheel = 0;
@@ -28,6 +29,7 @@ AetherAudioProcessor::AetherAudioProcessor()
   apvts.addParameterListener ("killOnSwitch", this);
   apvts.addParameterListener ("endSwitch", this);
   apvts.addParameterListener ("activeSnapshot", this);
+  apvts.addParameterListener ("modwheelSlew", this);
 
   initFactoryPresets();
 }
@@ -41,6 +43,7 @@ AetherAudioProcessor::~AetherAudioProcessor() {
   apvts.removeParameterListener ("killOnSwitch", this);
   apvts.removeParameterListener ("endSwitch", this);
   apvts.removeParameterListener ("activeSnapshot", this);
+  apvts.removeParameterListener ("modwheelSlew", this);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -62,6 +65,8 @@ AetherAudioProcessor::createParameterLayout() {
       "syncDivision", "Sync Division", 0, 18, 14));
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "activeSnapshot", "Active Snapshot", 1, 9, 1));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "modwheelSlew", "Modwheel Slew", juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
   return layout;
 }
 
@@ -148,7 +153,10 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   } else {
     if (auto* playhead = getPlayHead()) {
       if (auto posInfo = playhead->getPosition()) {
-        if (posInfo->getPpqPosition().hasValue() && posInfo->getTimeSignature().hasValue()) {
+        if (!posInfo->getIsPlaying()) {
+          actualActiveSnap.store(targetActiveSnap);
+          lastPpqPosition = -1.0;
+        } else if (posInfo->getPpqPosition().hasValue() && posInfo->getTimeSignature().hasValue()) {
           double ppq = *posInfo->getPpqPosition();
           auto sig = *posInfo->getTimeSignature();
           double barLength = (4.0 * sig.numerator) / sig.denominator;
@@ -156,10 +164,11 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
           if (lastPpqPosition >= 0.0) {
             double prevBarPhase = std::fmod(lastPpqPosition, barLength);
             double currBarPhase = std::fmod(ppq, barLength);
-            // Check for loop wrap or bar boundary crossing
             if (currBarPhase < prevBarPhase || (ppq - lastPpqPosition) >= barLength) {
               actualActiveSnap.store(targetActiveSnap);
             }
+          } else {
+            actualActiveSnap.store(targetActiveSnap);
           }
           lastPpqPosition = ppq;
         } else {
@@ -223,18 +232,6 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   }
   wasPlaying = isPlaying;
 
-  if (!pEnabled || (pKill && !isPlaying)) {
-    bool hasNotes = false;
-    for (int s = 0; s < 9; ++s) {
-      if (!activeNotes[s].empty() || !midiQueues[s].empty()) hasNotes = true;
-    }
-    if (hasNotes) {
-      killActiveMidiNotes();
-    }
-    totalSamplesProcessed += numSamples;
-    return;
-  }
-
   // Update target delays for all 9 snapshots
   std::array<float, 9> currentDelayVals;
   for (int s = 0; s < 9; ++s) {
@@ -251,14 +248,27 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   std::array<std::vector<QueuedEvent>, 9> additions;
 
+  juce::MidiBuffer filteredMessages;
+  int currentPercent = lastEmittedPercent.load();
+
   for (const auto metadata : midiMessages) {
     auto msg = metadata.getMessage();
     int localPos = metadata.samplePosition;
     int noteKey = (msg.getChannel() << 7) | msg.getNoteNumber();
     long long origin = totalSamplesProcessed + localPos;
 
+    if (msg.isController() && msg.getControllerNumber() == 1) {
+        lastBaseModwheel = msg.getControllerValue();
+        int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * currentPercent) / 100.0f);
+        finalVal = juce::jlimit(0, 127, finalVal);
+        filteredMessages.addEvent(juce::MidiMessage::controllerEvent(msg.getChannel(), 1, finalVal), localPos);
+    } else {
+        filteredMessages.addEvent(msg, localPos);
+    }
+
     if (msg.isNoteOn()) {
-      activityHits++;
+        lastMidiChannel = msg.getChannel();
+        activityHits++;
       for (int s = 0; s < 9; ++s) {
         if (!snapshots[s].enabled) continue;
         
@@ -276,23 +286,25 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         ns.pitchCaps = cap;
         noteTrackers[s][noteKey] = ns;
 
-        int pStepCount = snapshots[s].stepCount;
-        for (int i = 0; i < pStepCount; ++i) {
-          if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
-            continue;
-          int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
-          additions[s].push_back(
-              {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
-               i + 1, i, noteKey, s});
-          auto dOn = msg;
-          dOn.setNoteNumber(targetNote);
-          dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
-          additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
-          additions[s].push_back({juce::MidiMessage::controllerEvent(
-                                   msg.getChannel(), 1, snapshots[s].steps[i].modwheel),
-                                origin, i + 1, i, noteKey, s});
+          int pStepCount = snapshots[s].stepCount;
+          for (int i = 0; i < pStepCount; ++i) {
+            if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
+              continue;
+            int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
+            additions[s].push_back(
+                {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
+                 i + 1, i, noteKey, s});
+            auto dOn = msg;
+            dOn.setNoteNumber(targetNote);
+            dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
+            additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
+            
+            int targetMod = snapshots[s].steps[i].modwheel;
+            additions[s].push_back({juce::MidiMessage::controllerEvent(
+                                   msg.getChannel(), 1, targetMod),
+                                  origin, i + 1, i, noteKey, s});
+          }
         }
-      }
     } else if (msg.isNoteOff()) {
       for (int s = 0; s < 9; ++s) {
         if (noteTrackers[s].count(noteKey)) {
@@ -311,6 +323,8 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     }
   }
 
+  midiMessages = filteredMessages;
+
   // Process all 9 queues
   for (int s = 0; s < 9; ++s) {
     float delayVal = currentDelayVals[s];
@@ -321,21 +335,37 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         int sampleOffset = (int)(eventTargetTime - totalSamplesProcessed);
         sampleOffset = juce::jlimit(0, numSamples - 1, sampleOffset);
 
-        if (s == activeSnap) {
-          midiMessages.addEvent(it->message, sampleOffset);
-          if (it->message.isNoteOn()) {
-            activityHits++;
-            int ch = it->message.getChannel();
-            int note = it->message.getNoteNumber();
-            if (std::find(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)) == activeNotes[s].end()) {
-              activeNotes[s].push_back({ch, note});
-            }
-          } else if (it->message.isNoteOff()) {
-            int ch = it->message.getChannel();
-            int note = it->message.getNoteNumber();
-            activeNotes[s].erase(std::remove(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)), activeNotes[s].end());
-          }
-        } else {
+          if (s == activeSnap) {
+              auto outMsg = it->message;
+              if (outMsg.isController() && outMsg.getControllerNumber() == 1) {
+                  int newPercent = outMsg.getControllerValue();
+                  targetModwheelPercent.store(newPercent);
+                  lastMidiChannel = outMsg.getChannel();
+                  
+                  currentModwheelPercentFloat = (float)newPercent;
+                  if (newPercent != lastEmittedPercent.load()) {
+                      lastEmittedPercent.store(newPercent);
+                      int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * newPercent) / 100.0f);
+                      finalVal = juce::jlimit(0, 127, finalVal);
+                      int ccOffset = juce::jlimit(0, numSamples - 1, sampleOffset - 1);
+                      midiMessages.addEvent(juce::MidiMessage::controllerEvent(lastMidiChannel, 1, finalVal), ccOffset);
+                  }
+              } else {
+                  midiMessages.addEvent(outMsg, sampleOffset);
+                  if (outMsg.isNoteOn()) {
+                    activityHits++;
+                    int ch = it->message.getChannel();
+                    int note = it->message.getNoteNumber();
+                    if (std::find(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)) == activeNotes[s].end()) {
+                      activeNotes[s].push_back({ch, note});
+                    }
+                  } else if (it->message.isNoteOff()) {
+                    int ch = it->message.getChannel();
+                    int note = it->message.getNoteNumber();
+                    activeNotes[s].erase(std::remove(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)), activeNotes[s].end());
+                  }
+              }
+          } else {
           // If not active snapshot, we only emit Note Offs for notes that were ACTUALLY turned on by this snapshot in the past
           if (it->message.isNoteOff()) {
             int ch = it->message.getChannel();
@@ -367,7 +397,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     }
   }
   
-  totalSamplesProcessed += numSamples;
+    totalSamplesProcessed += numSamples;
 }
 
 std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
@@ -401,6 +431,9 @@ std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
     
   if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("activeSnapshot")))
     paramsXml->setAttribute("activeSnapshot", p->get());
+
+  if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("modwheelSlew")))
+    paramsXml->setAttribute("modwheelSlew", (double)p->get());
   
   // 2. Save Sequencer Snapshots
   auto *snapshotsXml = rootXml->createNewChildElement("SNAPSHOTS");
@@ -411,6 +444,7 @@ std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
     snapXml->setAttribute("enabled", snapshots[s].enabled);
     snapXml->setAttribute("delayTimeMs", (double)snapshots[s].delayTimeMs);
     snapXml->setAttribute("syncDivision", snapshots[s].syncDivision);
+    snapXml->setAttribute("modSlew", snapshots[s].modwheelSlew);
     for (int i = 0; i < 15; ++i) {
       auto *stepXml = snapXml->createNewChildElement("STEP");
       stepXml->setAttribute("id", i);
@@ -437,8 +471,14 @@ void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
       if (sId >= 0 && sId < 9) {
         snapshots[sId].stepCount = snapXml->getIntAttribute("stepCount", 15);
         snapshots[sId].enabled = snapXml->getBoolAttribute("enabled", true);
-        snapshots[sId].delayTimeMs = (float)snapXml->getDoubleAttribute("delayTimeMs", 500.0);
-        snapshots[sId].syncDivision = snapXml->getIntAttribute("syncDivision", 0);
+        if (snapXml->hasAttribute("delayTimeMs"))
+          snapshots[sId].delayTimeMs = (float)snapXml->getDoubleAttribute("delayTimeMs", 500.0);
+        if (snapXml->hasAttribute("syncDivision"))
+          snapshots[sId].syncDivision = snapXml->getIntAttribute("syncDivision", 0);
+        if (snapXml->hasAttribute("stepCount"))
+          snapshots[sId].stepCount = snapXml->getIntAttribute("stepCount", 15);
+        if (snapXml->hasAttribute("modSlew"))
+          snapshots[sId].modwheelSlew = (float)snapXml->getDoubleAttribute("modSlew", 0.0);
         for (auto *stepXml : snapXml->getChildIterator()) {
           int i = stepXml->getIntAttribute("id");
           if (i >= 0 && i < 15) {
@@ -463,6 +503,9 @@ void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
 
     if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("stepCount")))
       *p = paramsXml->getIntAttribute("stepCount", 15);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("modwheelSlew")))
+      *p = (float)paramsXml->getDoubleAttribute("modwheelSlew", 0.0);
 
     if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnStop")))
       *p = (paramsXml->getIntAttribute("killOnStop", 1) != 0);
@@ -562,6 +605,11 @@ void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
   if (auto* p = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter ("stepCount")))
       p->setValueNotifyingHost (p->convertTo0to1 ((float)snap.stepCount));
       
+  if (auto* raw = apvts.getRawParameterValue("modwheelSlew"))
+      raw->store (snap.modwheelSlew);
+  if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter ("modwheelSlew")))
+      p->setValueNotifyingHost (p->convertTo0to1 (snap.modwheelSlew));
+      
   isUpdatingSnapshotParameters = false;
 }
 
@@ -601,6 +649,8 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
         snapshots[activeSnap].syncDivision = (int)std::round(newValue);
     else if (parameterID == "stepCount")
         snapshots[activeSnap].stepCount = (int)std::round(newValue);
+    else if (parameterID == "modwheelSlew")
+        snapshots[activeSnap].modwheelSlew = newValue;
   }
 }
 juce::AudioProcessorEditor *AetherAudioProcessor::createEditor() {

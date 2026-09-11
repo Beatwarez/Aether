@@ -10,7 +10,7 @@ class AetherWebView : public juce::WebBrowserComponent
 {
 public:
     // Caches to avoid redundant C++ -> JS messages
-    float localParams[9] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+    float localParams[10] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
     DelayStep localSteps[15];
     int localStepCount = -1;
     int localActiveSnapshot = -1;
@@ -50,12 +50,16 @@ public:
         stateObj->setProperty ("syncDivision", syncDivisionStr);
         
         stateObj->setProperty ("stepCount", snap.stepCount);
+        stateObj->setProperty ("modwheelSlew", snap.modwheelSlew);
         
         auto* kosP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("killOnStop"));
         stateObj->setProperty ("killOnStop", kosP ? kosP->get() : true);
         
         auto* kswP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("killOnSwitch"));
         stateObj->setProperty ("killOnSwitch", kswP ? kswP->get() : false);
+        
+        auto* esP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("endSwitch"));
+        stateObj->setProperty ("endSwitch", esP ? esP->get() : false);
         
         stateObj->setProperty ("activeSnapshot", activeSnap);
         stateObj->setProperty ("editSnapshot", editSnap);
@@ -123,7 +127,7 @@ public:
                     if (paramName == "queryall")
                     {
                         // Reset caches to sentinel values so the timer pushes full state
-                        for (int i = 0; i < 9; ++i)
+                        for (int i = 0; i < 10; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         webViewInstance->localActiveSnapshot = -1;
@@ -295,7 +299,7 @@ public:
                             p.snapshots[editSnap] = p.copiedSnapshot;
                             
                             // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
-                            for (int i = 0; i < 9; ++i)
+                            for (int i = 0; i < 10; ++i)
                                 webViewInstance->localParams[i] = -1.0f;
                             webViewInstance->localStepCount = -1;
                             webViewInstance->localActiveSnapshot = -1;
@@ -320,7 +324,7 @@ public:
                         p.editSnapshot = (int)paramValue - 1; // Also set edit snapshot
                         
                         // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
-                        for (int i = 0; i < 9; ++i)
+                        for (int i = 0; i < 10; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         webViewInstance->localActiveSnapshot = -1;
@@ -346,7 +350,7 @@ public:
                         p.editSnapshot = (int)paramValue - 1;
                         
                         // Reset caches to trigger a push
-                        for (int i = 0; i < 9; ++i)
+                        for (int i = 0; i < 10; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         
@@ -365,11 +369,13 @@ public:
                             p.snapshots[editSnap].delayTimeMs = paramValue;
                         else if (paramName == "syncDivision")
                             p.snapshots[editSnap].syncDivision = (int)paramValue;
-                        // killOnStop and killOnSwitch are global, other params are per-snapshot
+                        else if (paramName == "modwheelSlew")
+                            p.snapshots[editSnap].modwheelSlew = paramValue;
+                        // killOnStop, killOnSwitch, and endSwitch are global, other params are per-snapshot
                         int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
                         activeSnap = juce::jlimit (0, 8, activeSnap);
 
-                        if (editSnap == activeSnap || paramName == "killOnStop" || paramName == "killOnSwitch")
+                        if (editSnap == activeSnap || paramName == "killOnStop" || paramName == "killOnSwitch" || paramName == "endSwitch")
                         {
                             if (auto* rawVal = p.apvts.getRawParameterValue (paramName))
                             {
@@ -417,7 +423,7 @@ public:
     // next tick and push the complete loaded state to JS safely from the message thread.
     void pageFinishedLoading (const juce::String& /*url*/) override
     {
-        for (int i = 0; i < 6; ++i)
+        for (int i = 0; i < 10; ++i)
             localParams[i] = -1.0f;
         localStepCount = -1;
         localActiveSnapshot = -1;
@@ -521,7 +527,7 @@ public:
                     evaluateJavascript ("if (window.aetherUI) { window.aetherUI.initializeState('" + fullStateJson + "'); }");
                     
                     // Reset all caches in the editor so that they update correctly on next timer tick
-                    for (int i = 0; i < 9; ++i)
+                    for (int i = 0; i < 10; ++i)
                         localParams[i] = -1.0f;
                     localStepCount = -1;
                     localActiveSnapshot = -1;

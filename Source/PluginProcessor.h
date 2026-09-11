@@ -19,6 +19,7 @@ struct Snapshot {
   bool enabled = true;
   float delayTimeMs = 500.0f;
   int syncDivision = 13;
+  float modwheelSlew{0.0f};
 };
 
 struct NoteState {
@@ -83,6 +84,11 @@ public:
   std::atomic<bool> isInitializing{ false };
   std::atomic<bool> stopRequested{false};
   std::atomic<int> activityHits{0};
+  int lastBaseModwheel = 0;
+  std::atomic<int> lastEmittedPercent{0};
+  std::atomic<int> targetModwheelPercent{0};
+  float currentModwheelPercentFloat{0.0f};
+  int lastMidiChannel{1};
 
   juce::String currentBank{ "" };
   juce::String currentPreset{ "Init" };
