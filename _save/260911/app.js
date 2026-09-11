@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = '0.02';
+const BUILD_VERSION = '0.0.6';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [

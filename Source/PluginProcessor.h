@@ -86,6 +86,9 @@ public:
   std::atomic<int> activityHits{0};
   int lastBaseModwheel = 0;
   std::atomic<int> lastEmittedPercent{0};
+  std::atomic<int> targetModwheelPercent{0};
+  float currentModwheelPercentFloat{0.0f};
+  int lastMidiChannel{1};
 
   juce::String currentBank{ "" };
   juce::String currentPreset{ "Init" };

@@ -275,7 +275,8 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     }
 
     if (msg.isNoteOn()) {
-      activityHits++;
+        lastMidiChannel = msg.getChannel();
+        activityHits++;
       for (int s = 0; s < 9; ++s) {
         if (!snapshots[s].enabled) continue;
         
@@ -293,48 +294,23 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         ns.pitchCaps = cap;
         noteTrackers[s][noteKey] = ns;
 
-        int pStepCount = snapshots[s].stepCount;
-        float samplesPerStep = currentDelayVals[s];
-        for (int i = 0; i < pStepCount; ++i) {
-          if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
-            continue;
-          int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
-          additions[s].push_back(
-              {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
-               i + 1, i, noteKey, s});
-          auto dOn = msg;
-          dOn.setNoteNumber(targetNote);
-          dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
-          additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
-          
-          int targetMod = snapshots[s].steps[i].modwheel;
-          float slewParam = snapshots[s].modwheelSlew;
-          int prevMod = (i == 0) ? lastEmittedPercent.load() : snapshots[s].steps[i - 1].modwheel;
-          
-          if (slewParam > 0.0f && prevMod != targetMod) {
-              long long slewSamples = (long long)(samplesPerStep * slewParam);
-              int ccInterval = (int)(getSampleRate() * 0.015);
-              if (ccInterval < 100) ccInterval = 100;
-              int numSlewEvents = (int)(slewSamples / ccInterval);
-              
-              if (numSlewEvents > 0) {
-                  for (int k = 0; k <= numSlewEvents; ++k) {
-                      float fraction = (float)k / (float)numSlewEvents;
-                      int currentMod = prevMod + (int)((targetMod - prevMod) * fraction);
-                      long long ccOrigin = origin + (long long)(fraction * slewSamples);
-                      additions[s].push_back({juce::MidiMessage::controllerEvent(
-                             msg.getChannel(), 1, currentMod),
-                            ccOrigin, i + 1, i, noteKey, s});
-                  }
-              } else {
-                  additions[s].push_back({juce::MidiMessage::controllerEvent(
-                                 msg.getChannel(), 1, targetMod),
-                                origin, i + 1, i, noteKey, s});
-              }
-          } else {
-              additions[s].push_back({juce::MidiMessage::controllerEvent(
-                                     msg.getChannel(), 1, targetMod),
-                                    origin, i + 1, i, noteKey, s});
+          int pStepCount = snapshots[s].stepCount;
+          for (int i = 0; i < pStepCount; ++i) {
+            if (snapshots[s].steps[i].muted || random.nextInt(100) >= snapshots[s].steps[i].probability)
+              continue;
+            int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
+            additions[s].push_back(
+                {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), origin,
+                 i + 1, i, noteKey, s});
+            auto dOn = msg;
+            dOn.setNoteNumber(targetNote);
+            dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
+            additions[s].push_back({dOn, origin + 1, i + 1, i, noteKey, s});
+            
+            int targetMod = snapshots[s].steps[i].modwheel;
+            additions[s].push_back({juce::MidiMessage::controllerEvent(
+                                   msg.getChannel(), 1, targetMod),
+                                  origin, i + 1, i, noteKey, s});
           }
         }
       }
@@ -368,29 +344,27 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         int sampleOffset = (int)(eventTargetTime - totalSamplesProcessed);
         sampleOffset = juce::jlimit(0, numSamples - 1, sampleOffset);
 
-        if (s == activeSnap) {
-            auto outMsg = it->message;
-            if (outMsg.isController() && outMsg.getControllerNumber() == 1) {
-                int percent = outMsg.getControllerValue();
-                lastEmittedPercent.store(percent);
-                int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * percent) / 100.0f);
-                finalVal = juce::jlimit(0, 127, finalVal);
-                outMsg = juce::MidiMessage::controllerEvent(outMsg.getChannel(), 1, finalVal);
-            }
-            midiMessages.addEvent(outMsg, sampleOffset);
-            if (outMsg.isNoteOn()) {
-            activityHits++;
-            int ch = it->message.getChannel();
-            int note = it->message.getNoteNumber();
-            if (std::find(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)) == activeNotes[s].end()) {
-              activeNotes[s].push_back({ch, note});
-            }
-          } else if (it->message.isNoteOff()) {
-            int ch = it->message.getChannel();
-            int note = it->message.getNoteNumber();
-            activeNotes[s].erase(std::remove(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)), activeNotes[s].end());
-          }
-        } else {
+          if (s == activeSnap) {
+              auto outMsg = it->message;
+              if (outMsg.isController() && outMsg.getControllerNumber() == 1) {
+                  targetModwheelPercent.store(outMsg.getControllerValue());
+                  lastMidiChannel = outMsg.getChannel();
+              } else {
+                  midiMessages.addEvent(outMsg, sampleOffset);
+                  if (outMsg.isNoteOn()) {
+                    activityHits++;
+                    int ch = it->message.getChannel();
+                    int note = it->message.getNoteNumber();
+                    if (std::find(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)) == activeNotes[s].end()) {
+                      activeNotes[s].push_back({ch, note});
+                    }
+                  } else if (it->message.isNoteOff()) {
+                    int ch = it->message.getChannel();
+                    int note = it->message.getNoteNumber();
+                    activeNotes[s].erase(std::remove(activeNotes[s].begin(), activeNotes[s].end(), std::make_pair(ch, note)), activeNotes[s].end());
+                  }
+              }
+          } else {
           // If not active snapshot, we only emit Note Offs for notes that were ACTUALLY turned on by this snapshot in the past
           if (it->message.isNoteOff()) {
             int ch = it->message.getChannel();
@@ -422,6 +396,39 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     }
   }
   
+  // Real-Time Modwheel Smoother
+  int targetPct = targetModwheelPercent.load();
+  float slewParam = snapshots[activeSnap].modwheelSlew;
+  
+  if (slewParam <= 0.001f) {
+      currentModwheelPercentFloat = (float)targetPct;
+  } else {
+      float delayVal = currentDelayVals[activeSnap];
+      long long slewSamples = (long long)(delayVal * slewParam * 2.0f);
+      if (slewSamples < 1) slewSamples = 1;
+      
+      float maxDeltaPerSample = 100.0f / (float)slewSamples;
+      float deltaForBlock = maxDeltaPerSample * numSamples;
+      
+      if (currentModwheelPercentFloat < targetPct) {
+          currentModwheelPercentFloat += deltaForBlock;
+          if (currentModwheelPercentFloat > targetPct)
+              currentModwheelPercentFloat = (float)targetPct;
+      } else if (currentModwheelPercentFloat > targetPct) {
+          currentModwheelPercentFloat -= deltaForBlock;
+          if (currentModwheelPercentFloat < targetPct)
+              currentModwheelPercentFloat = (float)targetPct;
+      }
+  }
+  
+  int currentPercentInt = (int)std::round(currentModwheelPercentFloat);
+  if (currentPercentInt != lastEmittedPercent.load()) {
+      lastEmittedPercent.store(currentPercentInt);
+      int finalVal = lastBaseModwheel + (int)(((127 - lastBaseModwheel) * currentPercentInt) / 100.0f);
+      finalVal = juce::jlimit(0, 127, finalVal);
+      midiMessages.addEvent(juce::MidiMessage::controllerEvent(lastMidiChannel, 1, finalVal), numSamples - 1);
+  }
+
   totalSamplesProcessed += numSamples;
 }
 
