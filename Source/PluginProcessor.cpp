@@ -313,7 +313,6 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                                   origin, i + 1, i, noteKey, s});
           }
         }
-      }
     } else if (msg.isNoteOff()) {
       for (int s = 0; s < 9; ++s) {
         if (noteTrackers[s].count(noteKey)) {
