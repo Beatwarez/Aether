@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = '0.0.11';
+const BUILD_VERSION = '0.02';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -21,7 +21,6 @@ let state = {
     killOnStop: true,
     killOnSwitch: true,
     endSwitch: false,
-    modwheelSlew: 0.0,
     activeSnapshot: 0,
     actualActiveSnapshot: 0,
     editSnapshot: 0,
@@ -137,8 +136,8 @@ function buildLanes() {
     const lanesConfig = [
         { label: "Pitch Shift", prop: "pitch", min: -24, max: 24, isBipolar: true },
         { label: "Velocity", prop: "velocity", min: 1, max: 127 },
-        { label: "Modwheel", prop: "modwheel", min: 0, max: 100, unit: "%" },
-        { label: "Probability", prop: "probability", min: 0, max: 100, unit: "%" },
+        { label: "Modwheel", prop: "modwheel", min: 0, max: 127 },
+        { label: "Probability", prop: "probability", min: 0, max: 100 },
         { label: "Mute", prop: "muted", min: 0, max: 1 }
     ];
 
@@ -276,9 +275,11 @@ function updateStepUI(property, index) {
     } else {
         const fill = col.querySelector(".step-bar-fill, .step-bar-bipolar");
         const label = col.querySelector(".step-value-label");
+
+        // Format label text
         if (label) {
             let labelStr = val.toString();
-            if (property === 'probability' || property === 'modwheel') labelStr = `${val}%`;
+            if (property === 'probability') labelStr = `${val}%`;
             else if (property === 'pitch' && val > 0) labelStr = `+${val}`;
             label.textContent = labelStr;
         }
@@ -373,14 +374,6 @@ function updateUIFromState() {
     document.querySelectorAll(".snapshot-edit-btn").forEach((btn, i) => {
         btn.classList.toggle("active", i === state.editSnapshot);
     });
-    
-    const slewSlider = document.querySelector(".slew-slider");
-    const slewValLabel = document.querySelector(".slew-value");
-    if (slewSlider && slewValLabel) {
-        const percent = Math.round((state.modwheelSlew || 0) * 100);
-        slewSlider.value = percent;
-        slewValLabel.textContent = `${percent}%`;
-    }
 }
 
 // Calculate and apply step value changes from drag/mouse movement
@@ -685,8 +678,7 @@ const aetherUI = {
             'stepCount': 'stepCount',
             'killOnStop': 'killOnStop',
             'killOnSwitch': 'killOnSwitch',
-            'endSwitch': 'endSwitch',
-            'modwheelSlew': 'modwheelSlew'
+            'endSwitch': 'endSwitch'
         };
         const mappedKey = keyMap[param];
         if (mappedKey) {

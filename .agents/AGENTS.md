@@ -13,6 +13,7 @@
    - Once the user gives the proceed order, the agent should perform edits, builds, and verifications **completely autonomously**.
    - Do not stop to ask for confirmation or intermediate permissions during implementation. Assume the user approves all actions, commands, and file writes.
    - **Never** push changes to GitHub unless explicitly asked by the user.
+   - **Never** copy/push backups to the `_save` directory unless explicitly told to do so by the user. "Push the changes to github" only means to push the active code.
 
 4. **JUCE Audio Plugin Development Rules**:
    - Refer to `plugin_rules.md` in `JUCE_projects` for mandatory state serialization, typed parameter getters (`.get()`), `isInitializing` locks, and CSS-native Web View scaling rules.
