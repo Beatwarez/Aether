@@ -293,6 +293,15 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
             continue;
           int targetNote = juce::jlimit<int>(0, 127, msg.getNoteNumber() + cap[i]);
           
+          long long stepTime = origin + (long long)(samplesPerStep * (i + 1));
+          long long noteOffTarget = stepTime - (long long)(getSampleRate() * 0.015f);
+          if (noteOffTarget <= origin) noteOffTarget = origin + 1;
+          long long triggerSampleForNoteOff = noteOffTarget - (long long)(samplesPerStep * (i + 1));
+          
+          additions[s].push_back(
+              {juce::MidiMessage::noteOff(msg.getChannel(), targetNote), triggerSampleForNoteOff,
+               i + 1, i, noteKey, s});
+               
           auto dOn = msg;
           dOn.setNoteNumber(targetNote);
           dOn.setVelocity(snapshots[s].steps[i].velocity / 127.0f);
