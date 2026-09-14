@@ -10,7 +10,7 @@ class AetherWebView : public juce::WebBrowserComponent
 {
 public:
     // Caches to avoid redundant C++ -> JS messages
-    float localParams[10] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+    float localParams[11] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
     DelayStep localSteps[15];
     int localStepCount = -1;
     int localActiveSnapshot = -1;
@@ -57,6 +57,8 @@ public:
         
         auto* kswP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("killOnSwitch"));
         stateObj->setProperty ("killOnSwitch", kswP ? kswP->get() : false);
+        
+        stateObj->setProperty ("killOnNote", snap.killOnNote);
         
         auto* esP = dynamic_cast<juce::AudioParameterBool*>(p.apvts.getParameter("endSwitch"));
         stateObj->setProperty ("endSwitch", esP ? esP->get() : false);
@@ -127,7 +129,7 @@ public:
                     if (paramName == "queryall")
                     {
                         // Reset caches to sentinel values so the timer pushes full state
-                        for (int i = 0; i < 10; ++i)
+                        for (int i = 0; i < 11; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         webViewInstance->localActiveSnapshot = -1;
@@ -299,7 +301,7 @@ public:
                             p.snapshots[editSnap] = p.copiedSnapshot;
                             
                             // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
-                            for (int i = 0; i < 10; ++i)
+                            for (int i = 0; i < 11; ++i)
                                 webViewInstance->localParams[i] = -1.0f;
                             webViewInstance->localStepCount = -1;
                             webViewInstance->localActiveSnapshot = -1;
@@ -324,7 +326,7 @@ public:
                         p.editSnapshot = (int)paramValue - 1; // Also set edit snapshot
                         
                         // Reset all caches so the timer pushes the active snapshot's unique parameters to the JS UI on the next tick
-                        for (int i = 0; i < 10; ++i)
+                        for (int i = 0; i < 11; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         webViewInstance->localActiveSnapshot = -1;
@@ -350,7 +352,7 @@ public:
                         p.editSnapshot = (int)paramValue - 1;
                         
                         // Reset caches to trigger a push
-                        for (int i = 0; i < 10; ++i)
+                        for (int i = 0; i < 11; ++i)
                             webViewInstance->localParams[i] = -1.0f;
                         webViewInstance->localStepCount = -1;
                         
@@ -371,6 +373,8 @@ public:
                             p.snapshots[editSnap].syncDivision = (int)paramValue;
                         else if (paramName == "modwheelSlew")
                             p.snapshots[editSnap].modwheelSlew = paramValue;
+                        else if (paramName == "killOnNote")
+                            p.snapshots[editSnap].killOnNote = (paramValue > 0.5f);
                         // killOnStop, killOnSwitch, and endSwitch are global, other params are per-snapshot
                         int activeSnap = (int)p.apvts.getRawParameterValue ("activeSnapshot")->load() - 1;
                         activeSnap = juce::jlimit (0, 8, activeSnap);
@@ -423,7 +427,7 @@ public:
     // next tick and push the complete loaded state to JS safely from the message thread.
     void pageFinishedLoading (const juce::String& /*url*/) override
     {
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 11; ++i)
             localParams[i] = -1.0f;
         localStepCount = -1;
         localActiveSnapshot = -1;
@@ -527,7 +531,7 @@ public:
                     evaluateJavascript ("if (window.aetherUI) { window.aetherUI.initializeState('" + fullStateJson + "'); }");
                     
                     // Reset all caches in the editor so that they update correctly on next timer tick
-                    for (int i = 0; i < 10; ++i)
+                    for (int i = 0; i < 11; ++i)
                         localParams[i] = -1.0f;
                     localStepCount = -1;
                     localActiveSnapshot = -1;

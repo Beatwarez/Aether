@@ -27,6 +27,7 @@ AetherAudioProcessor::AetherAudioProcessor()
   apvts.addParameterListener ("stepCount", this);
   apvts.addParameterListener ("killOnStop", this);
   apvts.addParameterListener ("killOnSwitch", this);
+  apvts.addParameterListener ("killOnNote", this);
   apvts.addParameterListener ("endSwitch", this);
   apvts.addParameterListener ("activeSnapshot", this);
   apvts.addParameterListener ("modwheelSlew", this);
@@ -41,6 +42,7 @@ AetherAudioProcessor::~AetherAudioProcessor() {
   apvts.removeParameterListener ("stepCount", this);
   apvts.removeParameterListener ("killOnStop", this);
   apvts.removeParameterListener ("killOnSwitch", this);
+  apvts.removeParameterListener ("killOnNote", this);
   apvts.removeParameterListener ("endSwitch", this);
   apvts.removeParameterListener ("activeSnapshot", this);
   apvts.removeParameterListener ("modwheelSlew", this);
@@ -192,24 +194,22 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   auto* kswP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch"));
   bool pKillOnSwitch = kswP ? kswP->get() : false;
 
-  auto killActiveMidiNotes = [&](int snapIndex = -1, int sampleOffset = 0) {
+  auto killActiveMidiNotes = [&](int snapIndex = -1, int sampleOffset = 0, juce::MidiBuffer* targetBuf = nullptr) {
+      auto& buf = targetBuf ? *targetBuf : midiMessages;
     if (snapIndex == -1) {
       // Kill all
       for (int s = 0; s < 9; ++s) {
         for (const auto& note : activeNotes[s]) {
-          midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), sampleOffset);
+          buf.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), sampleOffset);
         }
         activeNotes[s].clear();
         midiQueues[s].clear();
         noteTrackers[s].clear();
       }
-      for (int ch = 1; ch <= 16; ++ch) {
-        midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), sampleOffset);
-      }
     } else {
       // Kill specific snapshot
       for (const auto& note : activeNotes[snapIndex]) {
-        midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), sampleOffset);
+        buf.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), sampleOffset);
       }
       activeNotes[snapIndex].clear();
       midiQueues[snapIndex].clear();
@@ -275,7 +275,7 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         if (!snapshots[s].enabled) continue;
         
         if (snapshots[s].killOnNote) {
-            killActiveMidiNotes(s, localPos);
+            killActiveMidiNotes(s, localPos, &filteredMessages);
         }
         
         std::array<int, 15> cap;
