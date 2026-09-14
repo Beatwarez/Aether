@@ -70,7 +70,7 @@ AetherAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "activeSnapshot", "Active Snapshot", 1, 9, 1));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "modwheelSlew", "Modwheel Slew", juce::NormalisableRange<float>(0.0f, 500.0f, 1.0f, 0.5f), 0.0f));
+      "modwheelSlew", "Modwheel Slew", juce::NormalisableRange<float>(0.0f, 1000.0f, 1.0f, 0.5f), 0.0f));
   return layout;
 }
 

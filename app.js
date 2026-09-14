@@ -175,7 +175,7 @@ function buildLanes() {
             slewSlider.min = "0";
             slewSlider.max = "100";
             const currentMs = state.modwheelSlew || 0;
-            slewSlider.value = Math.round(Math.sqrt(currentMs / 500.0) * 100.0);
+            slewSlider.value = Math.round(Math.sqrt(currentMs / 1000.0) * 100.0);
             
             const slewValLabel = document.createElement("span");
             slewValLabel.className = "slew-value";
@@ -183,7 +183,7 @@ function buildLanes() {
             
             slewSlider.oninput = (e) => {
                 const sliderVal = parseInt(e.target.value);
-                const msValue = Math.round(Math.pow(sliderVal / 100.0, 2) * 500.0);
+                const msValue = Math.round(Math.pow(sliderVal / 100.0, 2) * 1000.0);
                 slewValLabel.textContent = `${msValue}ms`;
                 state.modwheelSlew = msValue;
                 sendParamToCpp("modwheelSlew", state.modwheelSlew);
@@ -416,7 +416,7 @@ function updateUIFromState() {
     const slewValLabel = document.querySelector(".slew-value");
     if (slewSlider && slewValLabel) {
         const currentMs = state.modwheelSlew || 0;
-        slewSlider.value = Math.round(Math.sqrt(currentMs / 500.0) * 100.0);
+        slewSlider.value = Math.round(Math.sqrt(currentMs / 1000.0) * 100.0);
         slewValLabel.textContent = `${Math.round(currentMs)}ms`;
     }
 }
@@ -685,6 +685,57 @@ window.addEventListener("contextmenu", (e) => {
 });
 
 window.addEventListener("resize", handleWindowResize);
+
+// CSS Resizer Drag Logic
+const cssResizer = document.getElementById('css-resizer');
+if (cssResizer) {
+    let isResizing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    cssResizer.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isResizing = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        document.body.style.cursor = 'nwse-resize';
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        // Calculate the raw unscaled delta
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
+        
+        // Only send updates if there's actual movement
+        if (deltaX !== 0 || deltaY !== 0) {
+            // We scale up the delta by the inverted window scale so it maps correctly
+            // to the actual window size changes regardless of zoom level
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const scaleX = w / 1040;
+            const scaleY = h / 1200;
+            const scale = Math.min(scaleX, scaleY);
+            
+            const scaledDeltaX = deltaX / scale;
+            const scaledDeltaY = deltaY / scale;
+            
+            sendParamToCpp("resizeWindow", [scaledDeltaX, scaledDeltaY]);
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+        }
+    });
+}
 
 // --------------------------------------------------------------------------
 // 3. APVTS C++ Callback Interface

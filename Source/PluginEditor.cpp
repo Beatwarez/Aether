@@ -12,8 +12,8 @@ AetherAudioProcessorEditor::AetherAudioProcessorEditor(AetherAudioProcessor &p)
   // Add WebView UI
   addAndMakeVisible(webView);
 
-  // Add Resize Handle on top of WebView
-  addAndMakeVisible(resizer);
+  // Add Resize Handle on top of WebView (hidden to use CSS bridge resizer instead)
+  addChildComponent(resizer);
   resizer.setAlwaysOnTop(true);
 
   // Point the web view to the virtual origin managed by the C++

@@ -403,6 +403,28 @@ public:
                         }
                     }
                 }
+                else if (args.size() >= 2 && args[0].toString() == "resizeWindow")
+                {
+                    juce::var valArr = args[1];
+                    float deltaX = (float)valArr[0];
+                    float deltaY = (float)valArr[1];
+                    
+                    // We need to run UI updates on the message thread
+                    juce::MessageManager::callAsync([&p, deltaX, deltaY]() {
+                        if (auto* editor = p.getActiveEditor())
+                        {
+                            int newWidth = editor->getWidth() + (int)deltaX;
+                            int newHeight = editor->getHeight() + (int)deltaY;
+                            
+                            // Let the constrainer handle the limits and aspect ratio
+                            editor->getConstrainer()->checkBounds(editor->getBounds(), editor->getBounds(), editor->getBounds(), false, false, true, true);
+                            
+                            // The constrainer will ensure aspect ratio, but we want it to feel natural.
+                            // The easiest way is to just set size and let the host/constrainer fix it.
+                            editor->setSize(newWidth, newHeight);
+                        }
+                    });
+                }
                 completion (juce::var (true));
             });
     }
