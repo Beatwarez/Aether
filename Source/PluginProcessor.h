@@ -20,6 +20,7 @@ struct Snapshot {
   float delayTimeMs = 500.0f;
   int syncDivision = 13;
   float modwheelSlew{0.0f};
+  bool killOnNote = false;
 };
 
 struct NoteState {

@@ -60,6 +60,8 @@ AetherAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterBool>(
       "killOnSwitch", "Kill On Switch", true));
   layout.add(std::make_unique<juce::AudioParameterBool>(
+      "killOnNote", "Kill On Note", false));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
       "endSwitch", "End Switch", false));
   layout.add(std::make_unique<juce::AudioParameterInt>(
       "syncDivision", "Sync Division", 0, 18, 14));
@@ -190,24 +192,24 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   auto* kswP = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("killOnSwitch"));
   bool pKillOnSwitch = kswP ? kswP->get() : false;
 
-  auto killActiveMidiNotes = [&](int snapIndex = -1) {
+  auto killActiveMidiNotes = [&](int snapIndex = -1, int sampleOffset = 0) {
     if (snapIndex == -1) {
       // Kill all
       for (int s = 0; s < 9; ++s) {
         for (const auto& note : activeNotes[s]) {
-          midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), 0);
+          midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), sampleOffset);
         }
         activeNotes[s].clear();
         midiQueues[s].clear();
         noteTrackers[s].clear();
       }
       for (int ch = 1; ch <= 16; ++ch) {
-        midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
+        midiMessages.addEvent(juce::MidiMessage::allNotesOff(ch), sampleOffset);
       }
     } else {
       // Kill specific snapshot
       for (const auto& note : activeNotes[snapIndex]) {
-        midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), 0);
+        midiMessages.addEvent(juce::MidiMessage::noteOff(note.first, note.second, 0.0f), sampleOffset);
       }
       activeNotes[snapIndex].clear();
       midiQueues[snapIndex].clear();
@@ -271,6 +273,10 @@ void AetherAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         activityHits++;
       for (int s = 0; s < 9; ++s) {
         if (!snapshots[s].enabled) continue;
+        
+        if (snapshots[s].killOnNote) {
+            killActiveMidiNotes(s, localPos);
+        }
         
         std::array<int, 15> cap;
         for (int i = 0; i < 15; ++i)
@@ -478,6 +484,7 @@ std::unique_ptr<juce::XmlElement> AetherAudioProcessor::createStateXml() {
     snapXml->setAttribute("delayTimeMs", (double)snapshots[s].delayTimeMs);
     snapXml->setAttribute("syncDivision", snapshots[s].syncDivision);
     snapXml->setAttribute("modSlew", snapshots[s].modwheelSlew);
+    snapXml->setAttribute("killOnNote", snapshots[s].killOnNote ? 1 : 0);
     for (int i = 0; i < 15; ++i) {
       auto *stepXml = snapXml->createNewChildElement("STEP");
       stepXml->setAttribute("id", i);
@@ -512,6 +519,7 @@ void AetherAudioProcessor::loadStateFromXml(const juce::XmlElement& rootXml) {
           snapshots[sId].stepCount = snapXml->getIntAttribute("stepCount", 15);
         if (snapXml->hasAttribute("modSlew"))
           snapshots[sId].modwheelSlew = (float)snapXml->getDoubleAttribute("modSlew", 0.0);
+        snapshots[sId].killOnNote = (snapXml->getIntAttribute("killOnNote", 0) != 0);
         for (auto *stepXml : snapXml->getChildIterator()) {
           int i = stepXml->getIntAttribute("id");
           if (i >= 0 && i < 15) {
@@ -643,6 +651,11 @@ void AetherAudioProcessor::loadSnapshotParameters (int snapIdx) {
   if (auto* p = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter ("modwheelSlew")))
       p->setValueNotifyingHost (p->convertTo0to1 (snap.modwheelSlew));
       
+  if (auto* raw = apvts.getRawParameterValue("killOnNote"))
+      raw->store (snap.killOnNote ? 1.0f : 0.0f);
+  if (auto* p = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter ("killOnNote")))
+      p->setValueNotifyingHost (p->convertTo0to1 (snap.killOnNote ? 1.0f : 0.0f));
+      
   isUpdatingSnapshotParameters = false;
 }
 
@@ -684,6 +697,8 @@ void AetherAudioProcessor::parameterChanged (const juce::String& parameterID, fl
         snapshots[activeSnap].stepCount = (int)std::round(newValue);
     else if (parameterID == "modwheelSlew")
         snapshots[activeSnap].modwheelSlew = newValue;
+    else if (parameterID == "killOnNote")
+        snapshots[activeSnap].killOnNote = (newValue > 0.5f);
   }
 }
 juce::AudioProcessorEditor *AetherAudioProcessor::createEditor() {

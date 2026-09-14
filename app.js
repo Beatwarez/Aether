@@ -20,6 +20,7 @@ let state = {
     stepCount: 15,
     killOnStop: true,
     killOnSwitch: true,
+    killOnNote: false,
     endSwitch: false,
     modwheelSlew: 0.0,
     activeSnapshot: 0,
@@ -378,6 +379,8 @@ function updateUIFromState() {
     // 5b. Update kill-on-switch and end-switch buttons
     const kosBtn = document.getElementById("kill-on-switch-btn");
     if (kosBtn) kosBtn.classList.toggle("active", state.killOnSwitch);
+    const konBtn = document.getElementById("kill-on-note-btn");
+    if (konBtn) konBtn.classList.toggle("active", state.killOnNote);
     const esBtn = document.getElementById("end-switch-btn");
     if (esBtn) esBtn.classList.toggle("active", state.endSwitch);
 
@@ -571,6 +574,15 @@ document.getElementById("kill-on-switch-btn").onclick = () => {
     sendParamToCpp("killOnSwitch", state.killOnSwitch ? 1.0 : 0.0);
 };
 
+const killOnNoteBtn = document.getElementById("kill-on-note-btn");
+if (killOnNoteBtn) {
+    killOnNoteBtn.onclick = () => {
+        state.killOnNote = !state.killOnNote;
+        killOnNoteBtn.classList.toggle("active", state.killOnNote);
+        sendParamToCpp("killOnNote", state.killOnNote ? 1.0 : 0.0);
+    };
+}
+
 const endSwitchBtn = document.getElementById("end-switch-btn");
 if (endSwitchBtn) {
     endSwitchBtn.onclick = () => {
@@ -720,6 +732,7 @@ const aetherUI = {
             'stepCount': 'stepCount',
             'killOnStop': 'killOnStop',
             'killOnSwitch': 'killOnSwitch',
+            'killOnNote': 'killOnNote',
             'endSwitch': 'endSwitch',
             'modwheelSlew': 'modwheelSlew'
         };
