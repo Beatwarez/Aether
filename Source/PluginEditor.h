@@ -417,11 +417,13 @@ public:
                             int newHeight = editor->getHeight() + (int)deltaY;
                             
                             // Let the constrainer handle the limits and aspect ratio
-                            editor->getConstrainer()->checkBounds(editor->getBounds(), editor->getBounds(), editor->getBounds(), false, false, true, true);
+                            juce::Rectangle<int> bounds = editor->getBounds();
+                            bounds.setSize (newWidth, newHeight);
                             
-                            // The constrainer will ensure aspect ratio, but we want it to feel natural.
-                            // The easiest way is to just set size and let the host/constrainer fix it.
-                            editor->setSize(newWidth, newHeight);
+                            if (auto* constrainer = editor->getConstrainer())
+                                constrainer->checkBounds(bounds, editor->getBounds(), editor->getBounds(), false, false, true, true);
+                            
+                            editor->setBounds(bounds);
                         }
                     });
                 }
