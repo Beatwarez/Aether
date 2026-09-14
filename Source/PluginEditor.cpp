@@ -234,6 +234,20 @@ void AetherAudioProcessorEditor::timerCallback() {
     }
   }
 
+  // killOnNote
+  {
+    float val = snap.killOnNote ? 1.0f : 0.0f;
+    if (std::abs(val - webView.localParams[10]) > 0.001f) {
+      webView.localParams[10] = val;
+      AetherWebView::logToFile("timer pushing: killOnNote = " +
+                               juce::String(val));
+      webView.evaluateJavascript(
+          "if (window.aetherUI) "
+          "window.aetherUI.updateParamFromCpp('killOnNote', " +
+          juce::String(snap.killOnNote ? "true" : "false") + ");");
+    }
+  }
+
   // 3. Sync sequence steps from C++ snapshots to JS
   bool stepsChanged = false;
   for (int i = 0; i < 15; ++i) {
