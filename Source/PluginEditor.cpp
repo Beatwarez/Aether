@@ -308,13 +308,13 @@ void AetherAudioProcessorEditor::loadWindowSize() {
   juce::File prefFile = audioProcessor.getPreferencesFile();
   if (prefFile.existsAsFile()) {
     if (auto xml = juce::XmlDocument::parse(prefFile)) {
-      int w = xml->getIntAttribute("width", 1040);
-      int h = xml->getIntAttribute("height", 1280);
+      int w = xml->getIntAttribute("width", 780);
+      int h = xml->getIntAttribute("height", 960);
       setSize(w, h);
       return;
     }
   }
-  setSize(1040, 1280);
+  setSize(780, 960);
 }
 
 void AetherAudioProcessorEditor::saveWindowSize() {
