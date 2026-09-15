@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = '0.0.17';
+const BUILD_VERSION = '0.0.18';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -66,6 +66,12 @@ function scaleUI() {
     const container = document.getElementById('app-container');
     if (container) {
         container.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    }
+    
+    const resizer = document.getElementById('css-resizer');
+    if (resizer) {
+        resizer.style.transform = 'scale(' + scale + ')';
+        resizer.style.transformOrigin = 'bottom right';
     }
 }
 

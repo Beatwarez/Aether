@@ -1195,13 +1195,13 @@ body {
 }
 
 #css-resizer {
-    position: absolute;
+    position: fixed;
     bottom: 4px;
     right: 4px;
     width: 24px;
     height: 24px;
     cursor: nwse-resize;
-    z-index: 9999;
+    z-index: 100000 !important;
     display: flex;
     align-items: center;
     justify-content: center;
