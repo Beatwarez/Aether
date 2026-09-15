@@ -1200,15 +1200,12 @@ body {
     right: 4px;
     width: 24px;
     height: 24px;
-    cursor: nwse-resize;
     z-index: 100000 !important;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--crt-green-active);
-}
-#css-resizer:hover {
-    color: var(--crt-green);
+    pointer-events: none;
 }
 
 

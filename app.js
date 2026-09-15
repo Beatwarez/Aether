@@ -1,5 +1,5 @@
 // AETHER UI Logic & C++ Host Communication Bridge
-const BUILD_VERSION = '0.0.19';
+const BUILD_VERSION = '0.0.20';
 
 // 18 Sync divisions strings
 const SYNC_DIVISIONS = [
@@ -691,57 +691,6 @@ window.addEventListener("contextmenu", (e) => {
 });
 
 window.addEventListener("resize", handleWindowResize);
-
-// CSS Resizer Drag Logic
-const cssResizer = document.getElementById('css-resizer');
-if (cssResizer) {
-    let isResizing = false;
-    let lastX = 0;
-    let lastY = 0;
-
-    cssResizer.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        isResizing = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
-        document.body.style.cursor = 'nwse-resize';
-        e.preventDefault();
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        // Calculate the raw unscaled delta
-        const deltaX = e.clientX - lastX;
-        const deltaY = e.clientY - lastY;
-        
-        // Only send updates if there's actual movement
-        if (deltaX !== 0 || deltaY !== 0) {
-            // We scale up the delta by the inverted window scale so it maps correctly
-            // to the actual window size changes regardless of zoom level
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            const scaleX = w / 1040;
-            const scaleY = h / 1200;
-            const scale = Math.min(scaleX, scaleY);
-            
-            const scaledDeltaX = deltaX / scale;
-            const scaledDeltaY = deltaY / scale;
-            
-            sendParamToCpp("resizeWindow", [scaledDeltaX, scaledDeltaY]);
-            
-            lastX = e.clientX;
-            lastY = e.clientY;
-        }
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            document.body.style.cursor = 'default';
-        }
-    });
-}
 
 // --------------------------------------------------------------------------
 // 3. APVTS C++ Callback Interface
