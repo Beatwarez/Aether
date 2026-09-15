@@ -1,0 +1,71 @@
+name: Build Windows VST3 Installer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows-installer:
+    name: Build Windows VST3 Installer
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JUCE
+        run: |
+          git clone --branch 8.0.13 --depth 1 https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Update Jucer Module Paths for Windows CI
+        shell: bash
+        run: |
+          python -c '
+          import os
+          workspace = os.environ.get("GITHUB_WORKSPACE", "")
+          modules_path = os.path.join(workspace, "JUCE", "modules").replace("\\", "/")
+          
+          with open("Aether.jucer", "r") as f:
+              text = f.read()
+          text = text.replace("C:/JUCE/modules", modules_path)
+          text = text.replace("useGlobalPath=\"1\"", "useGlobalPath=\"0\"")
+          with open("Aether.jucer", "w") as f:
+              f.write(text)
+          '
+
+      - name: Download Projucer CLI (Windows)
+        shell: bash
+        run: |
+          curl -L https://github.com/juce-framework/JUCE/releases/download/8.0.13/juce-8.0.13-windows.zip -o juce.zip
+          mkdir -p temp_projucer
+          unzip -q juce.zip -d temp_projucer
+          mv temp_projucer/JUCE/Projucer.exe ./Projucer.exe
+          rm -rf temp_projucer juce.zip
+
+      - name: Generate Visual Studio Solution
+        run: |
+          ./Projucer.exe --resave Aether.jucer
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v2
+
+      - name: Restore NuGet Packages
+        run: |
+          nuget restore Builds/VisualStudio2022/Aether.sln
+
+      - name: Build Solution (x64 Release)
+        run: |
+          msbuild Builds/VisualStudio2022/Aether.sln /p:Configuration=Release /p:Platform=x64
+
+      - name: Build Installer (Inno Setup)
+        run: |
+          ISCC.exe installer_win.iss
+
+      - name: Upload Windows Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aether-Windows-Installer
+          path: Output/Aether_Windows_Installer.exe
+          retention-days: 7
