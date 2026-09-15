@@ -539,9 +539,11 @@ public:
             {
                 if (child->getStringAttribute ("name") == preset)
                 {
-                    processor.currentBank = bank;
-                    processor.currentPreset = preset;
+                    juce::String savedBank = bank;
+                    juce::String savedPreset = preset;
                     processor.loadStateFromXml (*child);
+                    processor.currentBank = savedBank;
+                    processor.currentPreset = savedPreset;
                     
                     // Trigger reload of active snapshot parameter in C++
                     auto* actP = dynamic_cast<juce::AudioParameterInt*> (processor.apvts.getParameter ("activeSnapshot"));
