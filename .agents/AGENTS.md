@@ -17,3 +17,8 @@
 
 4. **JUCE Audio Plugin Development Rules**:
    - Refer to `plugin_rules.md` in `JUCE_projects` for mandatory state serialization, typed parameter getters (`.get()`), `isInitializing` locks, and CSS-native Web View scaling rules.
+
+5. **Build Versioning**:
+   - Always increment the build version number whenever making code changes.
+   - The version number must be kept in sync across `app.js`, `Aether.jucer`, and `installer_win.iss`.
+   - Always report to the user which build number we are currently on after making changes.

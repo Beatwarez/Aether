@@ -48,6 +48,11 @@ AetherAudioProcessor::~AetherAudioProcessor() {
   apvts.removeParameterListener ("modwheelSlew", this);
 }
 
+bool AetherAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const {
+  return layouts.getMainInputChannelSet() == juce::AudioChannelSet::disabled()
+      && layouts.getMainOutputChannelSet() == juce::AudioChannelSet::disabled();
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout
 AetherAudioProcessor::createParameterLayout() {
   juce::AudioProcessorValueTreeState::ParameterLayout layout;
