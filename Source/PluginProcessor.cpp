@@ -3,7 +3,7 @@
 #include <algorithm>
 
 AetherAudioProcessor::AetherAudioProcessor()
-    : AudioProcessor(BusesProperties()),
+    : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout()) {
   for (int s = 0; s < 9; ++s) {
     snapshots[s].stepCount = 15;
@@ -46,11 +46,6 @@ AetherAudioProcessor::~AetherAudioProcessor() {
   apvts.removeParameterListener ("endSwitch", this);
   apvts.removeParameterListener ("activeSnapshot", this);
   apvts.removeParameterListener ("modwheelSlew", this);
-}
-
-bool AetherAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const {
-  return layouts.getMainInputChannelSet() == juce::AudioChannelSet::disabled()
-      && layouts.getMainOutputChannelSet() == juce::AudioChannelSet::disabled();
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout

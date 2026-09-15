@@ -1,6 +1,6 @@
 # Aether Operation Manual
 
-Welcome to **Aether**, a powerful step-sequenced multi-effect delay plugin designed to bring dynamic, rhythmic modulation to your audio tracks. Aether combines a high-quality delay engine with an intuitive 15-step sequencer that modulates Pitch, Velocity, Modwheel, and Probability per step, wrapped in a beautiful CRT-styled interface.
+Welcome to **Aether**, a powerful step-sequenced MIDI repeater plugin designed to bring dynamic, rhythmic modulation to your audio tracks. Aether combines a high-quality delay engine with an intuitive 15-step sequencer that modulates Pitch, Velocity, Modwheel, and Probability per step, wrapped in a beautiful CRT-styled interface.
 
 ---
 

@@ -57,8 +57,6 @@ public:
   const juce::String getName() const override { return "AETHER"; }
   bool acceptsMidi() const override { return true; }
   bool producesMidi() const override { return true; }
-  bool isMidiEffect() const override { return true; }
-  bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
   double getTailLengthSeconds() const override { return 15.0; }
   int getNumPrograms() override { return 1; }
   int getCurrentProgram() override { return 0; }
