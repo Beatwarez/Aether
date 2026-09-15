@@ -2,7 +2,7 @@
 
 [Setup]
 AppName=Aether
-AppVersion=0.0.18
+AppVersion=0.0.19
 AppPublisher=Algebra Within
 DefaultDirName={commoncf}\VST3\Algebra Within\Aether.vst3
 DisableDirPage=yes
